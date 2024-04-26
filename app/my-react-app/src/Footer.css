@@ -1,0 +1,54 @@
+.footer {
+  background-color: #1e205c;
+  color: #fff;
+  padding: 20px 0;
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.footer-content a {
+  color: #fff;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.footer-content a:hover {
+  color: #007bff;
+}
+
+.footer-weather {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.footer-weather svg {
+  width: 30px;
+  height: 30px;
+}
+
+.footer-bottom {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.footer-bottom a,
+.footer-bottom small {
+  color: #fff;
+  text-decoration: none;
+}
+
+.footer-bottom a:hover {
+  color: #007bff;
+}
