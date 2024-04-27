@@ -48,18 +48,40 @@ def get_articles():
         cur = conn.cursor()
 
         # Fetch articles with pagination
-        cur.execute("SELECT * FROM articles ORDER BY published_date DESC LIMIT %s OFFSET %s", (limit, offset))
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+            FROM articles AS a
+            ORDER BY a.published_date DESC
+            LIMIT %s OFFSET %s
+        """, (limit, offset))
         articles = cur.fetchall()
-
-        # Fetch total number of articles for pagination
-        cur.execute("SELECT COUNT(*) FROM articles")
-        total_articles = cur.fetchone()[0]
-
-        cur.close()
-        conn.close()
 
         articles_list = []
         for article in articles:
+            # Fetch tags for the article
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+            # Fetch article paragraphs
+            cur.execute("""
+                SELECT paragraph_text
+                FROM article_paragraphs
+                WHERE article_id = %s
+            """, (article[0],))
+            article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+            # Fetch comments for the article
+            cur.execute("""
+                SELECT comment_text
+                FROM comments
+                WHERE article_id = %s
+            """, (article[0],))
+            comments = [comment[0] for comment in cur.fetchall()]
+
             article_dict = {
                 'id': article[0],
                 'title': article[1],
@@ -67,13 +89,20 @@ def get_articles():
                 'author': article[3],
                 'published_date': article[4],
                 'number_of_views': article[5],
-                'tags': article[6],
-                'image_url': article[7],
-                'article_text': article[8],
-                'comments': article[9],
-                'source': article[10]
+                'tags': tags,
+                'image_url': article[6],
+                'article_text': article_text,
+                'comments': comments,
+                'source': article[7]
             }
             articles_list.append(article_dict)
+
+        # Calculate total number of articles for pagination
+        cur.execute("SELECT COUNT(*) FROM articles")
+        total_articles = cur.fetchone()[0]
+
+        cur.close()
+        conn.close()
 
         # Calculate total pages
         total_pages = (total_articles + limit - 1) // limit
@@ -86,7 +115,74 @@ def get_articles():
     except Exception as e:
         print("Error fetching articles:", e)
         return jsonify({"error": "Failed to fetch articles"}), 500
-    
+
+@app.route('/api/article/<int:article_id>', methods=['GET'])
+def get_article(article_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Fetch article by ID
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+            FROM articles AS a
+            WHERE a.id = %s
+        """, (article_id,))
+        article_data = cur.fetchone()
+
+        if article_data is None:
+            return jsonify({"error": "Article not found"}), 404
+
+        # Fetch tags for the article
+        cur.execute("""
+            SELECT tag_text
+            FROM tags
+            WHERE article_id = %s
+        """, (article_id,))
+        tags = [tag[0] for tag in cur.fetchall()]
+
+        # Fetch article paragraphs
+        cur.execute("""
+            SELECT paragraph_text
+            FROM article_paragraphs
+            WHERE article_id = %s
+        """, (article_id,))
+        article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+        # Fetch comments for the article
+        cur.execute("""
+            SELECT comment_text
+            FROM comments
+            WHERE article_id = %s
+        """, (article_id,))
+        comments = [comment[0] for comment in cur.fetchall()]
+
+        article_dict = {
+            'id': article_data[0],
+            'title': article_data[1],
+            'url': article_data[2],
+            'author': article_data[3],
+            'published_date': article_data[4],
+            'number_of_views': article_data[5],
+            'tags': tags,
+            'image_url': article_data[6],
+            'article_text': article_text,
+            'comments': comments,
+            'source': article_data[7]
+        }
+
+        cur.close()
+        conn.close()
+
+        return jsonify({"article": article_dict})
+
+    except Exception as e:
+        print("Error fetching article:", e)
+        return jsonify({"error": "Failed to fetch article"}), 500
+
+
+
+
 
 @app.route('/api/signup', methods=['POST'])
 def signup():

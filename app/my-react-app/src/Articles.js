@@ -7,12 +7,11 @@ import Footer from './Footer';
 function Articles() {
   const [articles, setArticles] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1); // Initialize with 1
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   const { page } = useParams();
   const pageNumber = parseInt(page, 10) || 1;
-
-  console.log("Current Page:", pageNumber);
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -20,9 +19,11 @@ function Articles() {
         const response = await axios.get(`http://localhost:8000/api/articles?page=${pageNumber}&limit=${30}`);
         setArticles(response.data.articles);
         setTotalPages(response.data.totalPages);
-        setCurrentPage(parseInt(page, 10) || 1);  // Ensure page is parsed to integer or default to 1
+        setCurrentPage(parseInt(page, 10) || 1);
       } catch (error) {
         console.error('Error fetching articles:', error);
+      } finally {
+        setLoading(false);
       }
     };
   
@@ -32,8 +33,6 @@ function Articles() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPage, pageNumber]);
-
-  console.log("Page:", page);
 
   const renderPagination = () => {
     let pages = [];
@@ -122,13 +121,13 @@ function Articles() {
 
   const getSourceIcon = (source) => {
     switch (source) {
-      case 'ziaredotcom':
+      case 'Ziare.com':
         return <img src="/source_icons/ziaredotcom_logo.jpg" alt="ziaredotcom" className="source-icon" />;
-      case 'protv':
+      case 'PROTV':
         return <img src="/source_icons/protv_logo.png" alt="protv" className="source-icon" />;
-      case 'digi24':
+      case 'Digi24':
         return <img src="/source_icons/digi24_logo.png" alt="digi24" className="source-icon" />;
-      case 'mediafax':
+      case 'Mediafax':
         return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className="source-icon" />;
       default:
         return <span>{source}</span>;
@@ -160,19 +159,21 @@ function Articles() {
     }
   }
   
-    const [firstArticle, ...otherArticles] = articles;
+  const [firstArticle, ...otherArticles] = articles;
 
-    const shuffleArray = (array) => {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-    };
 
-  const shuffledOtherArticles = shuffleArray([...otherArticles]);
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-animation"></div>
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
-  const randomArticles = shuffledOtherArticles.slice(0, 5);
+  if (!articles) {
+    return <div>No articles to show.</div>;
+  }
 
   return (
   <div className="main-container">

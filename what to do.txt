@@ -1,0 +1,8 @@
+Scraping:
+    - de rezolvat eroarea aia la mediafax
+    - pozele la mediafax
+    - sa nu mai fie aceeasi poza la digi24
+    - sa fac si tag-urile si paragrafele sa fie arrays
+    - sa nu mai salvez pozele fara sa intru pe pagina articolului pentru ca au rezolutia prea mica
+    - DE INLOCUIT IMAGINILE NECALITATIVE CU UN SET DE IMAGINI ALES DE MINE
+    - de eliminat tag-urile care sunt spatii sau doar un caracter din greseala
