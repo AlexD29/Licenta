@@ -1,13 +1,13 @@
 import React from 'react';
 import './Navbar.css';
-import { Link, useLocation } from 'react-router-dom';  // Import Link and useLocation
+import { Link, useLocation } from 'react-router-dom';
 
 function Navbar() {
-  const location = useLocation();  // Get the current location
+  const location = useLocation();
 
-  // Determine the current route
   const isLogin = location.pathname === '/login';
   const isSignup = location.pathname === '/signup';
+  // window.scrollTo(0, 0);
 
   return (
     <nav className="navbar">
@@ -32,7 +32,6 @@ function Navbar() {
             <li><a href="#">Explore</a></li>
             <li><a href="#">Your_Interests</a></li>
             <li><a href="#">About</a></li>
-            {/* Conditional rendering for Login/Signup */}
             {!isLogin && <li><Link to="/login">Login</Link></li>}
           </ul>
         </div>

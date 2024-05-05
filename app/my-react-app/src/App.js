@@ -10,7 +10,7 @@ import './App.css';
 
 function App() {
   const [news, setNews] = useState([]);
-
+  
   return (
     <BrowserRouter>
         <Navbar />

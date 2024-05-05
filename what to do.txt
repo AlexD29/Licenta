@@ -6,3 +6,8 @@ Scraping:
     - sa nu mai salvez pozele fara sa intru pe pagina articolului pentru ca au rezolutia prea mica
     - DE INLOCUIT IMAGINILE NECALITATIVE CU UN SET DE IMAGINI ALES DE MINE
     - de eliminat tag-urile care sunt spatii sau doar un caracter din greseala
+    - nu stiu de ce la mediafax un articol nu are continutul ci are Vezi detaliile bla bla bla
+
+- Ar trebui sa schimb si sa fac aplicatia in romana?
+- Cum sa fac mai exact modelul de antrenament?
+- Pot sa fac ceva daca un site are CAPCHA?

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import './Login.css';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom'; 
+import Cookies from 'js-cookie';
 
 function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const navigate = useNavigate();  // Use useNavigate hook
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address');
@@ -33,10 +33,9 @@ function Login() {
     
         console.log('Login successful', response.data);
 
-        // Navigate to "/"
+        Cookies.set('session_token', response.data.session_token, { expires: 7 });
         navigate('/');
     
-        // Reset form and error
         setEmail('');
         setPassword('');
         setError('');

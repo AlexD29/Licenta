@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './Signup.css';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom';
+import Cookies from 'js-cookie';
 
 function Signup() {
   const [email, setEmail] = useState('');
@@ -9,7 +10,7 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
-  const navigate = useNavigate();  // Use useNavigate hook
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,28 +37,27 @@ function Signup() {
 
 
     try {
-        const response = await axios.post('http://localhost:8000/api/signup', {
-          email,
-          password,
-        });
-    
-        console.log('Signup successful', response.data);
+      const response = await axios.post('http://localhost:8000/api/signup', {
+        email,
+        password,
+      });
 
-        navigate('/');
-    
-        // Reset form and error
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
-        setError('');
-      } catch (error) {
-        if (error.response && error.response.data) {
-          setError(error.response.data.error || 'An error occurred');
-        } else {
-          setError('An error occurred');
-        }
+      console.log('Signup successful', response.data);
+      Cookies.set('session_token', response.data.session_token, { expires: 7 });
+      navigate('/');
+
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+      setError('');
+    } catch (error) {
+      if (error.response && error.response.data) {
+        setError(error.response.data.error || 'An error occurred');
+      } else {
+        setError('An error occurred');
       }
-    };
+    }
+  };
 
   return (
     <div className="auth-container">

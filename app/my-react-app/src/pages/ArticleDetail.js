@@ -59,6 +59,20 @@ function ArticleDetail() {
         return <img src="/source_icons/digi24_logo.png" alt="digi24" className="source-icon" />;
       case 'Mediafax':
         return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className="source-icon" />;
+      case 'Adevarul':
+        return <img src="/source_icons/adevarul_logo.jpeg" alt="adevarul" className="source-icon" />;
+      case 'Observator':
+        return <img src="/source_icons/observator_logo.png" alt="observator" className="source-icon" />;
+      case 'HotNews':
+        return <img src="/source_icons/hotnews_logo.png" alt="hotnews" className="source-icon" />;
+      case 'Stiri pe surse':
+        return <img src="/source_icons/stiripesurse_logo.png" alt="stiripesurse" className="source-icon" />;
+      case 'Gândul':
+        return <img src="/source_icons/gandul_logo.jpeg" alt="gandul" className="source-icon" />;
+      case 'Bursa':
+        return <img src="/source_icons/bursa_logo.jpg" alt="bursa" className="source-icon" />;
+      case 'Antena 3':
+        return <img src="/source_icons/antena3_logo.jpg" alt="antena3" className="source-icon" />;
       default:
         return <span>{source}</span>;
     }

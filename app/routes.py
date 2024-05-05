@@ -4,9 +4,22 @@ from flask_cors import CORS
 from flask import request
 import os
 import bcrypt
+import secrets
+from flask import g
 
 app = Flask(__name__)
 CORS(app)
+
+@app.before_request
+def before_request():
+    g.db_conn = get_db_connection()
+    g.db_cursor = g.db_conn.cursor()
+
+@app.after_request
+def after_request(response):
+    g.db_cursor.close()
+    g.db_conn.close()
+    return response
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -37,17 +50,13 @@ def serve_static_files(path):
 @app.route('/api/articles', methods=['GET'])
 def get_articles():
     try:
-        # Get query parameters for pagination
         page = int(request.args.get('page', 1))
-        limit = int(request.args.get('limit', 10))  # Default limit to 10 articles per page
+        limit = int(request.args.get('limit', 10))
 
-        # Calculate offset based on page and limit
         offset = (page - 1) * limit
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+        cur = g.db_cursor
 
-        # Fetch articles with pagination
         cur.execute("""
             SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
             FROM articles AS a
@@ -58,7 +67,6 @@ def get_articles():
 
         articles_list = []
         for article in articles:
-            # Fetch tags for the article
             cur.execute("""
                 SELECT tag_text
                 FROM tags
@@ -66,7 +74,6 @@ def get_articles():
             """, (article[0],))
             tags = [tag[0] for tag in cur.fetchall()]
 
-            # Fetch article paragraphs
             cur.execute("""
                 SELECT paragraph_text
                 FROM article_paragraphs
@@ -74,7 +81,6 @@ def get_articles():
             """, (article[0],))
             article_text = [paragraph[0] for paragraph in cur.fetchall()]
 
-            # Fetch comments for the article
             cur.execute("""
                 SELECT comment_text
                 FROM comments
@@ -97,14 +103,9 @@ def get_articles():
             }
             articles_list.append(article_dict)
 
-        # Calculate total number of articles for pagination
         cur.execute("SELECT COUNT(*) FROM articles")
         total_articles = cur.fetchone()[0]
 
-        cur.close()
-        conn.close()
-
-        # Calculate total pages
         total_pages = (total_articles + limit - 1) // limit
 
         return jsonify({
@@ -119,10 +120,8 @@ def get_articles():
 @app.route('/api/article/<int:article_id>', methods=['GET'])
 def get_article(article_id):
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        cur = g.db_cursor
 
-        # Fetch article by ID
         cur.execute("""
             SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
             FROM articles AS a
@@ -133,7 +132,6 @@ def get_article(article_id):
         if article_data is None:
             return jsonify({"error": "Article not found"}), 404
 
-        # Fetch tags for the article
         cur.execute("""
             SELECT tag_text
             FROM tags
@@ -141,7 +139,6 @@ def get_article(article_id):
         """, (article_id,))
         tags = [tag[0] for tag in cur.fetchall()]
 
-        # Fetch article paragraphs
         cur.execute("""
             SELECT paragraph_text
             FROM article_paragraphs
@@ -149,7 +146,6 @@ def get_article(article_id):
         """, (article_id,))
         article_text = [paragraph[0] for paragraph in cur.fetchall()]
 
-        # Fetch comments for the article
         cur.execute("""
             SELECT comment_text
             FROM comments
@@ -171,9 +167,6 @@ def get_article(article_id):
             'source': article_data[7]
         }
 
-        cur.close()
-        conn.close()
-
         return jsonify({"article": article_dict})
 
     except Exception as e:
@@ -181,7 +174,8 @@ def get_article(article_id):
         return jsonify({"error": "Failed to fetch article"}), 500
 
 
-
+def generate_session_token():
+    return secrets.token_hex(16)
 
 
 @app.route('/api/signup', methods=['POST'])
@@ -191,36 +185,35 @@ def signup():
         email = data.get('email')
         password = data.get('password')
 
-        # Check if email or password is missing
         if not email or not password:
             return jsonify({"error": "Email and password are required"}), 400
 
-        # Hash the password
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+        cur = g.db_cursor
 
-        # Get the next user ID using the get_next_user_id() function
         cur.execute("SELECT get_next_user_id()")
         next_user_id = cur.fetchone()[0] + 1
 
-        # Insert user into the database
         cur.execute("INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s) RETURNING email", (next_user_id, email, hashed_password.decode('utf-8')))
         new_user_email = cur.fetchone()[0]
 
-        conn.commit()
-        cur.close()
-        conn.close()
+        g.db_conn.commit()
+
+        session_token = generate_session_token()
+        cur.execute("UPDATE users SET session_token = %s WHERE email = %s", (session_token, email))
+        g.db_conn.commit()
 
         return jsonify({
             'id': next_user_id,
-            'email': new_user_email
+            'email': new_user_email,
+            'session_token': session_token
         }), 201
 
     except Exception as e:
         print("Error signing up:", e)
         return jsonify({"error": "Failed to signup"}), 500
+
 
 
 @app.route('/api/login', methods=['POST'])
@@ -230,31 +223,53 @@ def login():
         email = data.get('email')
         password = data.get('password')
 
-        # Check if email or password is missing
         if not email or not password:
             return jsonify({"error": "Email and password are required"}), 400
 
-        conn = get_db_connection()
-        cur = conn.cursor()
+        cur = g.db_cursor
 
-        # Fetch user by email
         cur.execute("SELECT id, email, password_hash FROM users WHERE email = %s", (email,))
         user = cur.fetchone()
 
         if not user:
             return jsonify({"error": "Invalid email or password"}), 401
 
-        # Check password
         if not bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
             return jsonify({"error": "Invalid email or password"}), 401
+        
+        session_token = generate_session_token()
+        cur.execute("UPDATE users SET session_token = %s WHERE id = %s", (session_token, user[0]))
+        g.db_conn.commit()
 
-        # TODO: Generate and save token for user session
-        # For now, return user info
         return jsonify({
             'id': user[0],
-            'email': user[1]
+            'email': user[1],
+            'session_token': session_token
         }), 200
 
     except Exception as e:
         print("Error logging in:", e)
         return jsonify({"error": "Failed to login"}), 500
+    
+
+@app.route('/api/protected', methods=['GET'])
+def protected_route():
+    try:
+        session_token = request.cookies.get('session_token')
+
+        if not session_token:
+            return jsonify({"error": "Session token is required"}), 401
+
+        cur = g.db_cursor
+
+        cur.execute("SELECT * FROM users WHERE session_token = %s", (session_token,))
+        user = cur.fetchone()
+
+        if not user:
+            return jsonify({"error": "Invalid session token"}), 401
+
+        return jsonify({"message": "You are authorized to access this resource"}), 200
+
+    except Exception as e:
+        print("Error accessing protected route:", e)
+        return jsonify({"error": "Failed to access protected route"}), 500
