@@ -11,3 +11,4 @@ Scraping:
 - Ar trebui sa schimb si sa fac aplicatia in romana?
 - Cum sa fac mai exact modelul de antrenament?
 - Pot sa fac ceva daca un site are CAPCHA?
+- De reparat chestia complicata cu Navbar-ul care nu se updateaza imediat

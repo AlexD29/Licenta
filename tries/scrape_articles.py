@@ -190,6 +190,81 @@ def get_next_page_url_antena3(current_url):
     next_page_url = '/'.join(parts)
     return next_page_url
 
+def filter_and_normalize_tag(tag):
+    tag = tag.lower()
+    tag = tag.translate(str.maketrans('ăâîșț', 'aaist'))
+    tag = unicodedata.normalize('NFKD', tag).encode('ASCII', 'ignore').decode('utf-8')
+    return tag
+
+def match_tags_to_entities(tags, article_id):
+    unmatched_tags = []
+    for tag in tags:
+        entity_id = None
+        tag_words = tag.split()
+        for word in tag_words:
+            entity_id, table_name = match_word_to_entities(word)
+            if entity_id:
+                insert_tag_and_entity(tag, entity_id, table_name, article_id)
+                break
+        if not entity_id:
+            unmatched_tags.append(tag)
+    
+    if unmatched_tags:
+        insert_unmatched_tags(unmatched_tags, article_id)
+
+def match_word_to_entities(word):
+    cur.execute("SELECT id FROM politicians WHERE LOWER(last_name) LIKE %s", ('%' + word.lower() + '%',))
+    politician_id = cur.fetchone()
+    if politician_id:
+        return politician_id[0], 'politicians'
+    
+    cur.execute("SELECT id FROM cities WHERE LOWER(name) LIKE %s", ('%' + word.lower() + '%',))
+    city_id = cur.fetchone()
+    if city_id:
+        return city_id[0], 'cities'
+
+    cur.execute("SELECT id FROM political_parties WHERE LOWER(abbreviation) LIKE %s", ('%' + word.lower() + '%',))
+    political_party_id = cur.fetchone()
+    if political_party_id:
+        return political_party_id[0], 'political_parties'
+    
+    return None, None
+
+def insert_tag_and_entity(tag, entity_id, table_name, article_id):
+    cur.execute("""
+        INSERT INTO tags (article_id, tag_text)
+        VALUES (%s, %s)
+        RETURNING id
+    """, (article_id, tag))
+    tag_id = cur.fetchone()[0]
+    
+    if table_name == "politicians":
+        cur.execute("""
+            INSERT INTO tag_politician (tag_id, politician_id)
+            VALUES (%s, %s)
+        """, (tag_id, entity_id))
+        conn.commit()
+    elif table_name == "cities":
+        cur.execute("""
+            INSERT INTO tag_city (tag_id, city_id)
+            VALUES (%s, %s)
+        """, (tag_id, entity_id))
+        conn.commit()
+    elif table_name == "political_parties":
+        cur.execute("""
+            INSERT INTO tag_political_parties (tag_id, political_party_id)
+            VALUES (%s, %s)
+        """, (tag_id, entity_id))
+        conn.commit()
+
+def insert_unmatched_tags(unmatched_tags, article_id):
+    for tag_text in unmatched_tags:
+        cur.execute("""
+            INSERT INTO tags (article_id, tag_text)
+            VALUES (%s, %s)
+        """, (article_id, tag_text))
+        conn.commit()
+
 def extract_article_id_ziaredotcom(article_url):
     segments = article_url.split('/')
     last_segment = segments[-1]
@@ -211,7 +286,7 @@ def scrape_article_ziaredotcom(article_url):
 
         tags_div = soup.find('div', class_='tags__container article__marker')
         if tags_div:
-            tags = [tag.get_text(strip=True) for tag in tags_div.find_all('a')]
+            tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tags_div.find_all('a')]
         else:
             tags = []
 
@@ -288,11 +363,9 @@ def scrape_ziaredotcom():
                             ))
                             conn.commit()
 
-                            # Get the ID of the inserted article
                             cur.execute("SELECT id FROM articles WHERE url = %s", (article_data['url'],))
                             article_id = cur.fetchone()[0]
 
-                            # Insert data into the article_paragraphs table
                             for paragraph_text in article_data['article_text']:
                                 cur.execute("""
                                     INSERT INTO article_paragraphs (article_id, paragraph_text)
@@ -300,15 +373,8 @@ def scrape_ziaredotcom():
                                 """, (article_id, paragraph_text))
                                 conn.commit()
 
-                            # Insert data into the tags table
-                            for tag_text in article_data['tags']:
-                                cur.execute("""
-                                    INSERT INTO tags (article_id, tag_text)
-                                    VALUES (%s, %s)
-                                """, (article_id, tag_text))
-                                conn.commit()
-
-                            # Insert data into the comments table
+                            match_tags_to_entities(article_data['tags'], article_id)
+                            
                             for comment_text in article_data['comments']:
                                 cur.execute("""
                                     INSERT INTO comments (article_id, comment_text)
@@ -353,7 +419,7 @@ def scrape_article_digi24(article_url):
         tag_elements = soup.find('ul', class_='tags-list')
         if tag_elements:
             tag_links = tag_elements.find_all('a')
-            tags = [tag.text.strip() for tag in tag_links]
+            tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tag_links]
         else:
             tags = []
 
@@ -438,12 +504,7 @@ def scrape_digi24():
                             """, (article_id, paragraph_text))
                             conn.commit()
                         
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
                         
                         print("\nArticle INSERTED.\n")
                     else:
@@ -492,9 +553,11 @@ def scrape_article_mediafax(article_url):
         dl_element = soup.find('dl', class_='a-tags')
         if dl_element:
             dd_elements = dl_element.find_all('dd')
-            tags = [dd.get_text(strip=True)[:-1] for dd in dd_elements]  # Create a list of tags
+            tags = [filter_and_normalize_tag(dd.get_text(strip=True))  for dd in dd_elements]
         else:
             tags = []
+
+        print(tags)
 
         views_extracted = soup.find('span', class_='views')
         if views_extracted:
@@ -554,6 +617,7 @@ def scrape_articles_from_month_mediafax(month_url):
             for link in article_links:
                 article_url = link['href']
                 title = link.get_text(strip=True)
+                print(title)
                 article_data = scrape_article_mediafax(article_url)
                 if article_data:
                     cur.execute("""
@@ -580,12 +644,7 @@ def scrape_articles_from_month_mediafax(month_url):
                         """, (article_id, paragraph_text))
                         conn.commit()
 
-                    for tag_text in article_data['tags']:
-                        cur.execute("""
-                            INSERT INTO tags (article_id, tag_text)
-                            VALUES (%s, %s)
-                        """, (article_id, tag_text))
-                        conn.commit()
+                    match_tags_to_entities(article_data['tags'], article_id)
 
                     print("\nArticle INSERTED.\n")
                 else:
@@ -615,7 +674,7 @@ def scrape_article_protv(article_url):
         second_p = soup.find('div', class_='article--info').find_all('p')[1]
         if second_p:
             tag_links = second_p.find_all('a')
-            tags = [tag.text.strip() for tag in tag_links]
+            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
             tags = []
 
@@ -699,12 +758,7 @@ def scrape_protv():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         print("Article INSERTED.\n")
                     else:
@@ -761,7 +815,7 @@ def scrape_article_adevarul(article_url):
         tags_div = soup.find('div', class_='tags svelte-1kju2ho')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [tag.get_text() for tag in a_tags]
+            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
             tags_string = []
 
@@ -871,12 +925,7 @@ def scrape_adevarul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -911,7 +960,7 @@ def scrape_article_observator(article_url):
         tags_div = soup.find('div', class_='taguri')
         if tags_div:
             tag_links = tags_div.find_all('a')
-            tags = [tag.text.strip() for tag in tag_links]
+            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
             tags = []
 
@@ -999,12 +1048,7 @@ def scrape_observator():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         print("Article INSERTED.\n")
                     else:
@@ -1027,6 +1071,9 @@ def scrape_article_hotnews(article_url):
         main_div = soup.find('article', class_='article-page')
 
         title = main_div.find('h1', class_='title').text.strip()
+        unwanted_words = ["VIDEO"]
+        for word in unwanted_words:
+            title = title.replace(word, "").strip()
 
         img_div = main_div.find('img', class_='lead-img')
         image_url_with_dimensions = img_div['src']
@@ -1039,6 +1086,18 @@ def scrape_article_hotnews(article_url):
             author_name = "Unknown"
 
         tags = []
+        words = re.findall(r'\b\w+\b', title)
+        i = 0
+        while i < len(words):
+            word = words[i]
+            if len(word) >= 3 and (word.isupper() or word[0].isupper()):
+                # Check if next words also start with an uppercase letter
+                while i + 1 < len(words) and words[i + 1][0].isupper():
+                    word += ' ' + words[i + 1]
+                    i += 1
+                tag = filter_and_normalize_tag(word)
+                tags.append(tag)
+            i += 1
 
         unparsed_published_date = main_div.find('span', class_='ora is-actualitate').text.strip()
         published_date = parse_published_date(unparsed_published_date)
@@ -1121,12 +1180,7 @@ def scrape_hotnews():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1173,7 +1227,7 @@ def scrape_article_stiripesurse(article_url):
         second_p = soup.find('div', class_='article-tags')
         if second_p:
             tag_links = second_p.find_all('a')
-            tags = [tag.text.strip() for tag in tag_links]
+            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
             tags = []
 
@@ -1262,12 +1316,7 @@ def scrape_stiripesurse():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         print("Article INSERTED.\n")
                     else:
@@ -1303,7 +1352,7 @@ def scrape_article_gandul(article_url):
         tags_div = soup.find('div', class_='single__tags mg-bottom-20')
         if tags_div:
             tag_links = tags_div.find_all('a')
-            tags = [tag.text.strip() for tag in tag_links]
+            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
             tags = []
 
@@ -1401,12 +1450,7 @@ def scrape_gandul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         print("Article INSERTED.\n")
                     else:
@@ -1445,7 +1489,7 @@ def scrape_article_bursa(article_url):
         tags_div = soup.find('footer', class_='post-meta').find('p')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [tag.get_text() for tag in a_tags]
+            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
             tags_string = []
 
@@ -1541,12 +1585,7 @@ def scrape_bursa():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1596,7 +1635,7 @@ def scrape_article_antena3(article_url):
         tags_div = soup.find('div', class_='tags')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [tag.get_text() for tag in a_tags]
+            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
             tags_string = []
 
@@ -1697,12 +1736,7 @@ def scrape_antena3():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        for tag_text in article_data['tags']:
-                            cur.execute("""
-                                INSERT INTO tags (article_id, tag_text)
-                                VALUES (%s, %s)
-                            """, (article_id, tag_text))
-                            conn.commit()
+                        match_tags_to_entities(article_data['tags'], article_id)
 
                         print("ARTICLE INSERTED.\n")
                     else:
@@ -1721,7 +1755,8 @@ def scrape_antena3():
 
 #scrape_ziaredotcom()
 #scrape_digi24()
-#scrape_mediafax() # - are o problema la schimbarea paginii
+#scrape_mediafax() # - are o problema la schimbarea paginii + aparent are problema ca la un moment dat zice ca date
+# element e None....
 #scrape_protv()
 #scrape_adevarul()
 #scrape_observator()

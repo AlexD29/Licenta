@@ -1,13 +1,18 @@
 import React from 'react';
 import './Navbar.css';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 
 function Navbar() {
   const location = useLocation();
-
   const isLogin = location.pathname === '/login';
   const isSignup = location.pathname === '/signup';
-  // window.scrollTo(0, 0);
+  const { isLoggedIn, logout } = useAuth();
+
+  const handleLogout = () => {
+    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    logout();
+  };
 
   return (
     <nav className="navbar">
@@ -27,14 +32,19 @@ function Navbar() {
         </div>
       )}
       { !isLogin && !isSignup && (
-        <div className="navbar-tabs">
-          <ul>
-            <li><a href="#">Explore</a></li>
-            <li><a href="#">Your_Interests</a></li>
-            <li><a href="#">About</a></li>
-            {!isLogin && <li><Link to="/login">Login</Link></li>}
-          </ul>
-        </div>
+      <div className="navbar-tabs">
+        <ul>
+          <li><a href="#">Explore</a></li>
+          <li><a href="#">Your Interests</a></li>
+          <li><a href="#">About</a></li>
+          {isLoggedIn && (
+            <li><Link to="/account">Account</Link></li>
+          )}
+          {!isLoggedIn && (
+            <li><Link to="/login">Login</Link></li>
+          )}
+        </ul>
+      </div>
       )}
     </nav>
   );
