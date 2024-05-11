@@ -7,20 +7,20 @@
 }
 
 .navbar-logo img {
-  height: 4rem;
+  height: 50px;
   width: auto;
   background-color:white;
   margin-right: 2rem;
 }
 
 .navbar-text-logo img {
-  height: 2rem;
+  height: 30px;
   width: auto;
   margin-right: 2rem;
 }
 
 .navbar-search input {
-  padding: 1rem;
+  padding: 12px;
   border-radius: 4px;
   border: none;
   width: 29rem;

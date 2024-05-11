@@ -118,7 +118,6 @@ function Articles() {
     return pages;
   };
 
-
   const getSourceIcon = (source) => {
     switch (source) {
       case 'Ziare.com':
@@ -212,7 +211,8 @@ function Articles() {
                   )}
             </div>
             <div className="home-right-side">
-                Statistici interesante
+                <img src="https://bam.files.bbci.co.uk/bam/live/content/z3gyr82/small"></img>
+                <img src="https://cdn.britannica.com/31/4431-004-B067AEDE/bar-graph-individuals-status.jpg"></img>
             </div>
         </div>
         <div className="home-second-part">

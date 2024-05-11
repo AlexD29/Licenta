@@ -1,0 +1,110 @@
+.explore-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-basis: calc(23%);
+    margin: 20px 10px;
+    background-color: #C0C0C0;
+    color: black;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease-in-out;
+}
+
+.card:first-child{
+    margin-left: 20px;
+}
+
+.card:last-child{
+    margin-right: 20px;
+}
+
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+
+
+.main-image{
+    text-align: center;
+}
+
+.card-image {
+    width: 90%;
+    height: 30vh;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.elections-list-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+}
+
+li:last-child{
+    margin-bottom: 15px;
+}
+
+.list-image {
+    width: 35%;
+    height: 70px;
+    margin-right: 10px;
+}
+
+.card a{
+    text-decoration: none;
+    color: black;
+}
+
+li div {
+    flex-grow: 1;
+}
+
+li div p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+li div p:last-child {
+    font-style: italic;
+}
+
+.more-button{
+    text-align: center;
+    margin-top: 10px;
+}
+
+.title-div{
+    background-color: #04248c;
+    color: white;
+    padding: 10px 0 5px 0;
+    border-radius: 10px 10px 0 0;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.card-title {
+    font-size: 25px;
+    text-align: center;
+}
+
+.link-card{
+    width: 100%;
+}
+
+.top-3-this-week{
+    text-align: center;
+}

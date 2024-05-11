@@ -34,7 +34,7 @@ function Navbar() {
       { !isLogin && !isSignup && (
       <div className="navbar-tabs">
         <ul>
-          <li><a href="#">Explore</a></li>
+          <li><Link to="/explore">Explore</Link></li>
           <li><a href="#">Your Interests</a></li>
           <li><a href="#">About</a></li>
           {isLoggedIn && (

@@ -1,0 +1,51 @@
+.politicians-container {
+    padding: 20px;
+}
+
+.politicians-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-gap: 20px;
+}
+
+.politician-card {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+.politician-image {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.politician-details {
+    margin-top: 10px;
+}
+
+.politician-name {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.politician-position {
+    margin: 5px 0;
+    font-size: 16px;
+}
+
+.follow-button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.follow-button:hover {
+    background-color: #0056b3;
+}

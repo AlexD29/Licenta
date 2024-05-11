@@ -173,6 +173,263 @@ def get_article(article_id):
         print("Error fetching article:", e)
         return jsonify({"error": "Failed to fetch article"}), 500
 
+@app.route('/api/explore', methods=['GET'])
+def explore_data():
+    try:
+        cur = g.db_cursor
+
+        # Fetch articles
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+            FROM articles AS a
+            ORDER BY a.published_date DESC
+        """)
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+            cur.execute("""
+                SELECT paragraph_text
+                FROM article_paragraphs
+                WHERE article_id = %s
+            """, (article[0],))
+            article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+            cur.execute("""
+                SELECT comment_text
+                FROM comments
+                WHERE article_id = %s
+            """, (article[0],))
+            comments = [comment[0] for comment in cur.fetchall()]
+
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': tags,
+                'image_url': article[6],
+                'article_text': article_text,
+                'comments': comments,
+                'source': article[7]
+            }
+            articles_list.append(article_dict)
+
+        # Fetch politicians
+        cur.execute("""
+            SELECT id, first_name, last_name, city, position, image_url, age
+            FROM politicians
+        """)
+        politicians = cur.fetchall()
+
+        politician_data = []
+        for politician in politicians:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_politician
+                JOIN tags ON tag_politician.tag_id = tags.id
+                WHERE politician_id = %s
+            """, (politician[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            politician_dict = {
+                'id': politician[0],
+                'first_name': politician[1],
+                'last_name': politician[2],
+                'city': politician[3],
+                'position': politician[4],
+                'image_url': politician[5],
+                'age': politician[6],
+                'tags': tags
+            }
+            politician_data.append(politician_dict)
+
+        # Fetch cities
+        cur.execute("""
+            SELECT id, name, description, image_url, candidates_for_mayor, mayor
+            FROM cities
+        """)
+        cities = cur.fetchall()
+
+        city_data = []
+        for city in cities:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_city
+                JOIN tags ON tag_city.tag_id = tags.id
+                WHERE city_id = %s
+            """, (city[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            city_dict = {
+                'id': city[0],
+                'name': city[1],
+                'description': city[2],
+                'image_url': city[3],
+                'candidates_for_mayor': city[4],
+                'mayor': city[5],
+                'tags': tags
+            }
+            city_data.append(city_dict)
+
+        # Fetch political parties
+        cur.execute("""
+            SELECT id, abbreviation, full_name, description, image_url
+            FROM political_parties
+        """)
+        political_parties = cur.fetchall()
+
+        party_data = []
+        for party in political_parties:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_political_parties
+                JOIN tags ON tag_political_parties.tag_id = tags.id
+                WHERE political_party_id = %s
+            """, (party[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            party_dict = {
+                'id': party[0],
+                'abbreviation': party[1],
+                'full_name': party[2],
+                'description': party[3],
+                'image_url': party[4],
+                'tags': tags
+            }
+            party_data.append(party_dict)
+
+        return jsonify({
+            'articles': articles_list,
+            'politicians': politician_data,
+            'cities': city_data,
+            'political_parties': party_data
+        })
+
+    except Exception as e:
+        print("Error fetching explore data:", e)
+        return jsonify({"error": "Failed to fetch explore data"}), 500
+
+@app.route('/api/politicians', methods=['GET'])
+def politicians_data():
+    try:
+        cur = g.db_cursor
+        cur.execute("""
+            SELECT id, first_name, last_name, city, position, image_url, age
+            FROM politicians
+        """)
+        politicians = cur.fetchall()
+
+        politician_data = []
+        for politician in politicians:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_politician
+                JOIN tags ON tag_politician.tag_id = tags.id
+                WHERE politician_id = %s
+            """, (politician[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            politician_dict = {
+                'id': politician[0],
+                'first_name': politician[1],
+                'last_name': politician[2],
+                'city': politician[3],
+                'position': politician[4],
+                'image_url': politician[5],
+                'age': politician[6],
+                'tags': tags
+            }
+            politician_data.append(politician_dict)
+
+        return jsonify({
+            'politicians': politician_data
+        })
+
+    except Exception as e:
+        print("Error fetching explore data:", e)
+        return jsonify({"error": "Failed to fetch explore data"}), 500
+
+@app.route('/api/political-parties', methods=['GET'])
+def political_parties_data():
+    try:
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT id, abbreviation, full_name, description, image_url
+            FROM political_parties
+        """)
+        political_parties = cur.fetchall()
+
+        party_data = []
+        for party in political_parties:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_political_parties
+                JOIN tags ON tag_political_parties.tag_id = tags.id
+                WHERE political_party_id = %s
+            """, (party[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            party_dict = {
+                'id': party[0],
+                'abbreviation': party[1],
+                'full_name': party[2],
+                'description': party[3],
+                'image_url': party[4],
+                'tags': tags
+            }
+            party_data.append(party_dict)
+
+        return jsonify({
+            'political_parties': party_data
+        })
+
+    except Exception as e:
+        print("Error fetching explore data:", e)
+        return jsonify({"error": "Failed to fetch explore data"}), 500
+
+@app.route('/api/cities', methods=['GET'])
+def cities_data():
+    try:
+        cur = g.db_cursor
+        cur.execute("""
+            SELECT id, name, description, image_url, candidates_for_mayor, mayor
+            FROM cities
+        """)
+        cities = cur.fetchall()
+
+        city_data = []
+        for city in cities:
+            cur.execute("""
+                SELECT tag_text
+                FROM tag_city
+                JOIN tags ON tag_city.tag_id = tags.id
+                WHERE city_id = %s
+            """, (city[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            city_dict = {
+                'id': city[0],
+                'name': city[1],
+                'description': city[2],
+                'image_url': city[3],
+                'candidates_for_mayor': city[4],
+                'mayor': city[5],
+                'tags': tags
+            }
+            city_data.append(city_dict)
+
+        return jsonify({
+            'cities': city_data
+        })
+
+    except Exception as e:
+        print("Error fetching explore data:", e)
+        return jsonify({"error": "Failed to fetch explore data"}), 500
 
 def generate_session_token():
     return secrets.token_hex(16)
@@ -213,7 +470,6 @@ def signup():
     except Exception as e:
         print("Error signing up:", e)
         return jsonify({"error": "Failed to signup"}), 500
-
 
 
 @app.route('/api/login', methods=['POST'])

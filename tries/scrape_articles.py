@@ -7,6 +7,8 @@ import psycopg2
 from bs4 import BeautifulSoup
 import datetime
 import warnings
+from fuzzywuzzy import fuzz
+from unidecode import unidecode
 from urllib3.exceptions import InsecureRequestWarning
 
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
@@ -213,20 +215,26 @@ def match_tags_to_entities(tags, article_id):
         insert_unmatched_tags(unmatched_tags, article_id)
 
 def match_word_to_entities(word):
-    cur.execute("SELECT id FROM politicians WHERE LOWER(last_name) LIKE %s", ('%' + word.lower() + '%',))
-    politician_id = cur.fetchone()
-    if politician_id:
-        return politician_id[0], 'politicians'
-    
-    cur.execute("SELECT id FROM cities WHERE LOWER(name) LIKE %s", ('%' + word.lower() + '%',))
-    city_id = cur.fetchone()
-    if city_id:
-        return city_id[0], 'cities'
+    def normalized_similarity(string1, string2):
+        return fuzz.ratio(unidecode(string1.lower()), unidecode(string2.lower()))
 
-    cur.execute("SELECT id FROM political_parties WHERE LOWER(abbreviation) LIKE %s", ('%' + word.lower() + '%',))
-    political_party_id = cur.fetchone()
-    if political_party_id:
-        return political_party_id[0], 'political_parties'
+    cur.execute("SELECT id, last_name FROM politicians")
+    politicians = cur.fetchall()
+    for politician_id, last_name in politicians:
+        if normalized_similarity(word, last_name) > 80:
+            return politician_id, 'politicians'
+    
+    cur.execute("SELECT id, name FROM cities")
+    cities = cur.fetchall()
+    for city_id, name in cities:
+        if normalized_similarity(word, name) > 80:
+            return city_id, 'cities'
+
+    cur.execute("SELECT id, abbreviation FROM political_parties")
+    political_parties = cur.fetchall()
+    for party_id, abbreviation in political_parties:
+        if normalized_similarity(word, abbreviation) > 80:
+            return party_id, 'political_parties'
     
     return None, None
 
