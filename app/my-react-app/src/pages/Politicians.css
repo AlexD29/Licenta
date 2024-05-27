@@ -9,20 +9,20 @@
 }
 
 .politician-card {
+    color: white;
     background-color: #f9f9f9;
     border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 10px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
 }
 
 .politician-image {
-    width: 100%;
+    width: 80%;
     height: auto;
     border-radius: 5px;
-}
-
-.politician-details {
-    margin-top: 10px;
+    margin-bottom: 2px;
 }
 
 .politician-name {
@@ -44,8 +44,51 @@
     padding: 8px 15px;
     font-size: 16px;
     cursor: pointer;
+    width: 80%;
+    margin-top: 5px;
 }
 
 .follow-button:hover {
     background-color: #0056b3;
+}
+
+.first-section{
+    width:18%;
+}
+
+.statistics-section{
+    width:40%;
+}
+
+.politicians-section{
+    width: 40%;
+    margin-right: 2%;
+}
+
+.politicians-container{
+    display: flex;
+    flex-direction: row;
+}
+
+.politician-details-first-part{
+    display: flex;
+    flex-direction: column;
+    width: 50%;
+    margin: 10px;
+}
+
+.politician-details-second-part{
+    display: flex;
+    flex-direction: column;
+}
+
+.politician-details{
+    display: flex;
+    flex-direction: row;
+    background-color: #152ab8;
+    border-radius: 8px 8px 0 0;
+}
+
+.profile-statistic-image{
+    width: 80%;
 }

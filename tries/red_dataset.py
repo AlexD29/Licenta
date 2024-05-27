@@ -26,9 +26,9 @@ BATCH_SIZE = 8
 MAX_LEN = 100
 class_names = ["Bucurie", "Furie", "Frica", "Tristete", "Neutru"]
 
-df_train = pd.read_csv(r"../data/train_modified.csv")
-df_val = pd.read_csv(r"../data/val_modified.csv")  # Your labeled dataset for validation
-df_test = pd.read_csv(r"../data/test_modified.csv")  # Your labeled dataset for testing
+df_train = pd.read_csv(r"./tries/train_modified.csv")
+df_val = pd.read_csv(r"./tries/val_modified.csv")  # Your labeled dataset for validation
+df_test = pd.read_csv(r"./tries/test_modified.csv")  # Your labeled dataset for testing
 
 # Preprocess datasets
 label_encoder = LabelEncoder()

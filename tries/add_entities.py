@@ -49,4 +49,4 @@ def insert_cities_from_excel_to_db():
     conn.commit()
     print("Data inserted successfully.")
 
-insert_politicians_from_excel_to_db()
+#insert_politicians_from_excel_to_db()
