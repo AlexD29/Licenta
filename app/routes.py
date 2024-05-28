@@ -1,3 +1,4 @@
+from celery import Celery
 import psycopg2
 from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
@@ -45,7 +46,6 @@ def serve_css(path):
 @app.route('/<path:path>')
 def serve_static_files(path):
     return send_from_directory(os.path.join('my-react-app', 'build'), path)
-
 
 @app.route('/api/articles', methods=['GET'])
 def get_articles():

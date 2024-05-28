@@ -2,6 +2,7 @@ import random
 import re
 import string
 import unicodedata
+from flask import jsonify
 import requests
 import psycopg2
 from bs4 import BeautifulSoup
@@ -10,16 +11,27 @@ import warnings
 from fuzzywuzzy import fuzz
 from unidecode import unidecode
 from urllib3.exceptions import InsecureRequestWarning
+import threading
+import time
 
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
-conn = psycopg2.connect(
-    dbname="Licenta",
-    user="postgres",
-    password="password",
-    host="localhost"
-)
-cur = conn.cursor()
+def create_db_connection():
+    connection = psycopg2.connect(
+        dbname="Licenta",
+        user="postgres",
+        password="password",
+        host="localhost"
+    )
+    return connection
+
+# conn = psycopg2.connect(
+#             dbname="Licenta",
+#             user="postgres",
+#             password="password",
+#             host="localhost"
+#         )
+# cur = conn.cursor()
 
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -34,7 +46,7 @@ def is_published_this_year(parsed_published_date):
     current_year = datetime.datetime.now().year
     return parsed_published_date.year == current_year
 
-def get_latest_article_date(source):
+def get_latest_article_date(source, cur):
     cur.execute("""
         SELECT MAX(published_date) FROM articles WHERE source = %s
     """, (source,))
@@ -198,23 +210,23 @@ def filter_and_normalize_tag(tag):
     tag = unicodedata.normalize('NFKD', tag).encode('ASCII', 'ignore').decode('utf-8')
     return tag
 
-def match_tags_to_entities(tags, article_id):
+def match_tags_to_entities(tags, article_id, cur, conn):
     unmatched_tags = []
     for tag in tags:
         entity_id = None
         tag_words = tag.split()
         for word in tag_words:
-            entity_id, table_name = match_word_to_entities(word)
+            entity_id, table_name = match_word_to_entities(word, cur)
             if entity_id:
-                insert_tag_and_entity(tag, entity_id, table_name, article_id)
+                insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn)
                 break
         if not entity_id:
             unmatched_tags.append(tag)
     
     if unmatched_tags:
-        insert_unmatched_tags(unmatched_tags, article_id)
+        insert_unmatched_tags(unmatched_tags, article_id, cur, conn)
 
-def match_word_to_entities(word):
+def match_word_to_entities(word, cur):
     def normalized_similarity(string1, string2):
         return fuzz.ratio(unidecode(string1.lower()), unidecode(string2.lower()))
 
@@ -238,7 +250,7 @@ def match_word_to_entities(word):
     
     return None, None
 
-def insert_tag_and_entity(tag, entity_id, table_name, article_id):
+def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn):
     cur.execute("""
         INSERT INTO tags (article_id, tag_text)
         VALUES (%s, %s)
@@ -265,7 +277,7 @@ def insert_tag_and_entity(tag, entity_id, table_name, article_id):
         """, (tag_id, entity_id))
         conn.commit()
 
-def insert_unmatched_tags(unmatched_tags, article_id):
+def insert_unmatched_tags(unmatched_tags, article_id, cur, conn):
     for tag_text in unmatched_tags:
         cur.execute("""
             INSERT INTO tags (article_id, tag_text)
@@ -334,9 +346,12 @@ def scrape_comments_ziaredotcom(article_id):
         return []
 
 def scrape_ziaredotcom():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://ziare.com/politica/stiri-politice/stiri/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("ziaredotcom")
+    latest_article_date = get_latest_article_date("Ziare.com", cur)
     while not stop_scraping:
         response = requests.get(url)
         if response.status_code == 200:
@@ -381,7 +396,7 @@ def scrape_ziaredotcom():
                                 """, (article_id, paragraph_text))
                                 conn.commit()
 
-                            match_tags_to_entities(article_data['tags'], article_id)
+                            match_tags_to_entities(article_data['tags'], article_id, cur, conn)
                             
                             for comment_text in article_data['comments']:
                                 cur.execute("""
@@ -389,7 +404,7 @@ def scrape_ziaredotcom():
                                     VALUES (%s, %s)
                                 """, (article_id, comment_text))
                                 conn.commit()
-                            print("Article INSERTED.\n")
+                            print("ZIARE.COM: ARTICLE INSERTED.\n")
                         else:
                             print("Failed to scrape article:", article_url)
                     else:
@@ -398,10 +413,13 @@ def scrape_ziaredotcom():
             url = get_next_page_ziaredotcom(soup)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def extract_author_name(link):
     author_name = link.replace('/autor/', '')
@@ -467,9 +485,12 @@ def clean_title_digi24(title):
         return title.strip()
 
 def scrape_digi24():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://www.digi24.ro/stiri/actualitate/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Digi24")
+    latest_article_date = get_latest_article_date("Digi24", cur)
     while not stop_scraping:
         response = requests.get(url)
         if response.status_code == 200:
@@ -512,9 +533,9 @@ def scrape_digi24():
                             """, (article_id, paragraph_text))
                             conn.commit()
                         
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
                         
-                        print("\nArticle INSERTED.\n")
+                        print("\nDIGI 24 INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -523,10 +544,13 @@ def scrape_digi24():
             url = get_next_page_digi24(soup)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def check_if_updated_mediafax(url):
     latest_article_date = get_latest_article_date("mediafax")
@@ -543,7 +567,6 @@ def check_if_updated_mediafax(url):
             if article_data:
                 published_date = article_data['published_date']
                 if latest_article_date is not None and published_date <= latest_article_date:
-                    print(published_date)
                     return True
     return False
 
@@ -612,7 +635,7 @@ def scrape_mediafax():
             print(f"Scraping articles from: {month_url}")
             scrape_articles_from_month_mediafax(month_url)
 
-def scrape_articles_from_month_mediafax(month_url):
+def scrape_articles_from_month_mediafax(month_url, cur, conn):
     stop_scraping = False
     while not stop_scraping:
         response = requests.get(month_url)
@@ -652,13 +675,13 @@ def scrape_articles_from_month_mediafax(month_url):
                         """, (article_id, paragraph_text))
                         conn.commit()
 
-                    match_tags_to_entities(article_data['tags'], article_id)
+                    match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                    print("\nArticle INSERTED.\n")
+                    print("\nMEDIAFAX INSERTED.\n")
                 else:
                     print("Failed to scrape article:", article_url)
             month_url = get_next_page_mediafax(month_url)
-            print("\nPAGE CHANGED.\n", month_url)
+            # print("\nPAGE CHANGED.\n", month_url)
             if month_url is None:
                 stop_scraping = True
         else:
@@ -712,9 +735,12 @@ def scrape_article_protv(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_protv():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://stirileprotv.ro/stiri/politic/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("PROTV")
+    latest_article_date = get_latest_article_date("PROTV", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -766,9 +792,9 @@ def scrape_protv():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                        print("Article INSERTED.\n")
+                        print("PROTV INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -777,10 +803,13 @@ def scrape_protv():
             url = get_next_page_protv(url)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def clean_title_adevarul(title):
     extra_words = ['SURSE', 'EXCLUSIV', 'DETALII', 'FOTO', 'VIDEO']
@@ -881,9 +910,12 @@ def scrape_comments_adevarul(article_id):
     return all_comment_texts
 
 def scrape_adevarul():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://adevarul.ro/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Adevarul")
+    latest_article_date = get_latest_article_date("Adevarul", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -904,7 +936,6 @@ def scrape_adevarul():
                 article_data = scrape_article_adevarul(article_url['href'])
                 if article_data:
                     published_date = article_data['published_date']
-                    print(published_date)
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
@@ -933,7 +964,7 @@ def scrape_adevarul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -941,7 +972,7 @@ def scrape_adevarul():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("Article INSERTED.\n")
+                        print("ADEVARUL INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -950,9 +981,12 @@ def scrape_adevarul():
             url = get_next_page_adevarul(url)
             if url is None:
                 stop_scraping = True
-            print("PAGE CHANGED: ", url)
+            # print("PAGE CHANGED: ", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def scrape_article_observator(article_url):
     response = requests.get(article_url)
@@ -1005,9 +1039,12 @@ def scrape_article_observator(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_observator():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://observatornews.ro/politic/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Observator")
+    latest_article_date = get_latest_article_date("Observator", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1056,9 +1093,9 @@ def scrape_observator():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                        print("Article INSERTED.\n")
+                        print("OBSERVATOR INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1067,10 +1104,13 @@ def scrape_observator():
             url = get_next_page_observator(url)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def scrape_article_hotnews(article_url):
     response = requests.get(article_url)
@@ -1135,9 +1175,12 @@ def scrape_article_hotnews(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_hotnews():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://www.hotnews.ro/politic"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("HotNews")
+    latest_article_date = get_latest_article_date("HotNews", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1188,7 +1231,7 @@ def scrape_hotnews():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1196,7 +1239,7 @@ def scrape_hotnews():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("Article INSERTED.\n")
+                        print("HOTNEWS INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1205,9 +1248,12 @@ def scrape_hotnews():
             url = get_next_page_hotnews(url)
             if url is None:
                 stop_scraping = True
-            print("PAGE CHANGED: ", url)
+            # print("PAGE CHANGED: ", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def scrape_article_stiripesurse(article_url):
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -1266,11 +1312,14 @@ def scrape_article_stiripesurse(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_stiripesurse():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://www.stiripesurse.ro/politica/page/1"
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     headers = {"User-Agent": custom_user_agent}
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Stiri pe surse")
+    latest_article_date = get_latest_article_date("Stiri pe surse", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, headers=headers)
@@ -1324,9 +1373,9 @@ def scrape_stiripesurse():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                        print("Article INSERTED.\n")
+                        print("STIRI PE SURSE INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1335,10 +1384,12 @@ def scrape_stiripesurse():
             url = get_next_page_stiripesurse_and_gandul(url)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+    cur.close()
+    conn.close()
 
 def scrape_article_gandul(article_url):
     response = requests.get(article_url)
@@ -1399,9 +1450,12 @@ def scrape_article_gandul(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_gandul():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://www.gandul.ro/politica/page/1"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Gândul")
+    latest_article_date = get_latest_article_date("Gândul", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1458,9 +1512,9 @@ def scrape_gandul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                        print("Article INSERTED.\n")
+                        print("GANDUL INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1469,10 +1523,13 @@ def scrape_gandul():
             url = get_next_page_stiripesurse_and_gandul(url)
             if url is None:
                 stop_scraping = True
-            else:
-                print("PAGE CHANGED:", url)
+            # else:
+            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def scrape_article_bursa(article_url):
     response = requests.get(article_url, verify=False)
@@ -1539,9 +1596,12 @@ def scrape_article_bursa(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_bursa():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     url = "https://www.bursa.ro/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Bursa")
+    latest_article_date = get_latest_article_date("Bursa", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, verify=False)
@@ -1593,7 +1653,7 @@ def scrape_bursa():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1601,7 +1661,7 @@ def scrape_bursa():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("Article INSERTED.\n")
+                        print("BURSA INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1612,9 +1672,12 @@ def scrape_bursa():
             url = get_next_page_bursa(buttons)
             if url is None:
                 stop_scraping = True
-            print("PAGE CHANGED: ", url)
+            # print("PAGE CHANGED: ", url)
         else:
             print("Failed to fetch page:", url)
+
+    cur.close()
+    conn.close()
 
 def scrape_article_antena3(article_url):
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -1685,11 +1748,14 @@ def scrape_article_antena3(article_url):
         print("Failed to scrape article:", article_url)
 
 def scrape_antena3():
+    conn = create_db_connection()
+    cur = conn.cursor()
+
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     headers = {"User-Agent": custom_user_agent}
     url = "https://www.antena3.ro/politica/pagina-1"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Antena 3")
+    latest_article_date = get_latest_article_date("Antena 3", cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, headers=headers)
@@ -1744,9 +1810,9 @@ def scrape_antena3():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id)
+                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
 
-                        print("ARTICLE INSERTED.\n")
+                        print("ANTENA 3 INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1756,10 +1822,15 @@ def scrape_antena3():
             url = get_next_page_url_antena3(url)
             if url is None:
                 stop_scraping = True
-            print("PAGE CHANGED: ", url)
+            # print("PAGE CHANGED: ", url)
         else:
             print("Failed to fetch page:", url)
 
+    cur.close()
+    conn.close()
+   
+source_scrapers = [scrape_adevarul, scrape_ziaredotcom, scrape_stiripesurse, scrape_digi24, 
+                   scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3]
 
 #scrape_ziaredotcom()
 #scrape_digi24()
@@ -1773,6 +1844,5 @@ def scrape_antena3():
 #scrape_gandul()
 #scrape_bursa()
 #scrape_antena3()
-cur.close()
-conn.close()
+
 
