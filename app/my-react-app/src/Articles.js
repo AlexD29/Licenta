@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useParams } from 'react-router-dom';
 import './Articles.css';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import Footer from './Footer';
+import TodayPiechart from './charts/TodayPiechart';
 
 function Articles() {
   const [articles, setArticles] = useState([]);
@@ -33,6 +35,7 @@ function Articles() {
   useEffect(() => {
     // window.scrollTo(0, 0);
   }, [currentPage, pageNumber]);
+  
 
   const renderPagination = () => {
     let pages = [];
@@ -205,14 +208,16 @@ function Articles() {
                           <div className="first-article-source-image">
                             {getSourceIcon(firstArticle.source)}
                           </div>
+                          <div>
+                            <p>{firstArticle.emotion}</p>
+                          </div>
                         </div>
                       </div>
                     </Link>
                   )}
             </div>
             <div className="home-right-side">
-                <img src="https://bam.files.bbci.co.uk/bam/live/content/z3gyr82/small"></img>
-                <img src="https://cdn.britannica.com/31/4431-004-B067AEDE/bar-graph-individuals-status.jpg"></img>
+              <TodayPiechart />
             </div>
         </div>
         <div className="home-second-part">
@@ -220,13 +225,16 @@ function Articles() {
             <Link key={article.id} to={`/article/${article.id}`}>
               <div className="article-card">
                     <div className="article-image-div">
-                        <img src={article.image_url} alt={"image"} className="article-image" />
+                        <img src={article.image_url} className="article-image" />
                     </div>
                     <div className="article-details-div">
                         <h3 className="article-text">{article.title}</h3>
                         <p className="article-text">{formatDate(article.published_date)}</p>
                         <div className="article-source-image">
                           {getSourceIcon(article.source)}
+                        </div>
+                        <div>
+                          <p>{article.emotion}</p>
                         </div>
                     </div>
               </div>
@@ -238,7 +246,7 @@ function Articles() {
           <div className="flex flex-middle">
             <div className="col-3">
               <Link to={`/page/1`} className="pagination-link pagination-link-prev">
-              <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enable-background="new 0 0 92 92" >
+              <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enableBackground="new 0 0 92 92" >
                 <path id="XMLID_646_" d="M78.7,9.4c-1.4-0.7-3-0.5-4.2,0.5L33,42.9c-1,0.8-1.5,1.9-1.5,3.1s0.6,2.4,1.5,3.1l41.5,33
                 c0.7,0.6,1.6,0.9,2.5,0.9c0.6,0,1.2-0.1,1.7-0.4c1.4-0.7,2.3-2.1,2.3-3.6V13C81,11.5,80.1,10.1,78.7,9.4z M73,70.7L41.9,46L73,21.3
                 V70.7z M19,14.6v63.5c0,2.5-2,4.5-4.5,4.5s-4.5-2-4.5-4.5V14.6c0-2.5,2-4.5,4.5-4.5S19,12.1,19,14.6z"></path>
@@ -265,7 +273,7 @@ function Articles() {
               </svg>
               </Link>
               <Link to={`/page/${totalPages}`} className="pagination-link pagination-link-next" rel="next">
-                <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enable-background="new 0 0 92 92" xmlSpace="preserve">
+                <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enableBackground="new 0 0 92 92" xmlSpace="preserve">
                   <path id="XMLID_659_" d="M59.5,42.9l-42-33c-1.2-0.9-2.8-1.1-4.2-0.5C11.9,10.1,11,11.5,11,13v66c0,1.5,0.9,2.9,2.3,3.6
                   c0.6,0.3,1.2,0.4,1.7,0.4c0.9,0,1.8-0.3,2.5-0.9l42-33c1-0.8,1.5-1.9,1.5-3.1C61,44.8,60.4,43.6,59.5,42.9z M19,70.8V21.2L50.5,46
                   L19,70.8z M81,14.6v63.5c0,2.5-2,4.5-4.5,4.5s-4.5-2-4.5-4.5V14.6c0-2.5,2-4.5,4.5-4.5S81,12.1,81,14.6z"></path>

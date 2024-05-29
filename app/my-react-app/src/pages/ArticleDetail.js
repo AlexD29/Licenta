@@ -127,7 +127,6 @@ function ArticleDetail() {
             article.article_text.map(paragraph => paragraph.split(/\s+/)).flat().slice(0, maxWords).join(' ') :
             "Article text not available"
           }
-          {/* Add ellipsis if the text exceeds the maximum word count */}
           {article.article_text && Array.isArray(article.article_text) && article.article_text.flatMap(paragraph => paragraph.split(/\s+/)).length > maxWords && '...'}
           <span className="fade-out"></span>
         </p>
@@ -141,6 +140,9 @@ function ArticleDetail() {
         </div>
         <div className="first-article-source-image">
           {getSourceIcon(article.source)}
+        </div>
+        <div>
+          <p>{article.emotion}</p>
         </div>
       </div>
     </div>

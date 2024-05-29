@@ -7,6 +7,7 @@ import os
 import bcrypt
 import secrets
 from flask import g
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -58,7 +59,7 @@ def get_articles():
         cur = g.db_cursor
 
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
             FROM articles AS a
             ORDER BY a.published_date DESC
             LIMIT %s OFFSET %s
@@ -99,6 +100,7 @@ def get_articles():
                 'image_url': article[6],
                 'article_text': article_text,
                 'comments': comments,
+                'emotion': article[8],
                 'source': article[7]
             }
             articles_list.append(article_dict)
@@ -123,7 +125,7 @@ def get_article(article_id):
         cur = g.db_cursor
 
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
             FROM articles AS a
             WHERE a.id = %s
         """, (article_id,))
@@ -164,6 +166,7 @@ def get_article(article_id):
             'image_url': article_data[6],
             'article_text': article_text,
             'comments': comments,
+            'emotion': article_data[8],
             'source': article_data[7]
         }
 
@@ -172,6 +175,68 @@ def get_article(article_id):
     except Exception as e:
         print("Error fetching article:", e)
         return jsonify({"error": "Failed to fetch article"}), 500
+
+@app.route('/api/articles/today', methods=['GET'])
+def get_today_articles():
+    try:
+        today_date = datetime.now().date()
+
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            FROM articles AS a
+            WHERE DATE(a.published_date) = %s
+            ORDER BY a.published_date DESC
+        """, (today_date,))
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+            cur.execute("""
+                SELECT paragraph_text
+                FROM article_paragraphs
+                WHERE article_id = %s
+            """, (article[0],))
+            article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+            cur.execute("""
+                SELECT comment_text
+                FROM comments
+                WHERE article_id = %s
+            """, (article[0],))
+            comments = [comment[0] for comment in cur.fetchall()]
+
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': tags,
+                'image_url': article[6],
+                'article_text': article_text,
+                'comments': comments,
+                'emotion': article[8],
+                'source': article[7]
+            }
+            articles_list.append(article_dict)
+
+        return jsonify({
+            'articles': articles_list,
+        })
+
+    except Exception as e:
+        print("Error fetching today's articles:", e)
+        return jsonify({"error": "Failed to fetch today's articles"}), 500
 
 @app.route('/api/politician_articles', methods=['GET'])
 def politician_articles():
@@ -254,7 +319,6 @@ def politician_articles():
     except Exception as e:
         print("Error fetching politician articles:", e)
         return jsonify({"error": "Failed to fetch politician articles"}), 500
-
 
 @app.route('/api/explore', methods=['GET'])
 def explore_data():

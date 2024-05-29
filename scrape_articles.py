@@ -11,8 +11,7 @@ import warnings
 from fuzzywuzzy import fuzz
 from unidecode import unidecode
 from urllib3.exceptions import InsecureRequestWarning
-import threading
-import time
+from tries.predict import predict_label, tokenizer, model
 
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
 
@@ -24,14 +23,6 @@ def create_db_connection():
         host="localhost"
     )
     return connection
-
-# conn = psycopg2.connect(
-#             dbname="Licenta",
-#             user="postgres",
-#             password="password",
-#             host="localhost"
-#         )
-# cur = conn.cursor()
 
 user_agents = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -372,9 +363,12 @@ def scrape_ziaredotcom():
                         article_url = link.a['href']
                         article_data = scrape_article_ziaredotcom(article_url)
                         if article_data:
+                            content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                            emotion_label = predict_label(content, tokenizer, model)
+
                             cur.execute("""
-                                INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source, emotion)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                             """, (
                                 title,
                                 article_data['url'],
@@ -382,7 +376,8 @@ def scrape_ziaredotcom():
                                 parsed_published_date,
                                 extract_number_from_string(article_data.get('number_of_views', 0)),
                                 article_data['image_url'],
-                                'Ziare.com'
+                                'Ziare.com',
+                                emotion_label
                             ))
                             conn.commit()
 
@@ -404,7 +399,7 @@ def scrape_ziaredotcom():
                                     VALUES (%s, %s)
                                 """, (article_id, comment_text))
                                 conn.commit()
-                            print("ZIARE.COM: ARTICLE INSERTED.\n")
+                            print("ZIARE.COM INSERTED.\n")
                         else:
                             print("Failed to scrape article:", article_url)
                     else:
@@ -413,8 +408,6 @@ def scrape_ziaredotcom():
             url = get_next_page_ziaredotcom(soup)
             if url is None:
                 stop_scraping = True
-            # else:
-            #     print("PAGE CHANGED:", url)
         else:
             print("Failed to fetch page:", url)
 
@@ -509,17 +502,21 @@ def scrape_digi24():
                             stop_scraping = True
                             print("\nDigi24 is updated.\n")
                             break
+
+                        content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
                         
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             title,
                             article_url,
                             article_data['author'],
                             article_data['published_date'],
                             article_data['image_url'],
-                            "Digi24"
+                            "Digi24",
+                            emotion_label
                         ))
                         conn.commit()
                         
@@ -651,8 +648,11 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                 print(title)
                 article_data = scrape_article_mediafax(article_url)
                 if article_data:
+                    content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                    emotion_label = predict_label(content, tokenizer, model)
+
                     cur.execute("""
-                        INSERT INTO articles (title, url, author, number_of_views, published_date, image_url, source)
+                        INSERT INTO articles (title, url, author, number_of_views, published_date, image_url, source, emotion)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """, (
                         title,
@@ -661,7 +661,8 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                         article_data['number_of_views'],
                         article_data['published_date'],
                         article_data['image_url'],
-                        'Mediafax'
+                        'Mediafax', 
+                        emotion_label
                     ))
                     conn.commit()
 
@@ -769,16 +770,20 @@ def scrape_protv():
                         if article_image_url is None:
                             article_image_url = backup_image
 
+                        content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             title,
                             article_url,
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'PROTV'
+                            'PROTV',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -941,16 +946,21 @@ def scrape_adevarul():
                             stop_scraping = True
                             print("\nAdevarul is updated.\n")
                             break
+
+                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             article_data['title'],
                             article_url['href'],
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'Adevarul'
+                            'Adevarul',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1070,16 +1080,20 @@ def scrape_observator():
                         if article_image_url is None:
                             article_image_url = backup_image
 
+                        content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             title,
                             article_url,
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Observator'
+                            'Observator',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1208,16 +1222,21 @@ def scrape_hotnews():
                             stop_scraping = True
                             print("\nHotNews is updated.\n")
                             break
+
+                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             article_data['title'],
                             article_url,
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'HotNews'
+                            'HotNews',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1349,9 +1368,12 @@ def scrape_stiripesurse():
                             print("\nStiri pe surse is updated.\n")
                             break
 
+                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
                             article_data['title'],
                             article_url,
@@ -1359,7 +1381,8 @@ def scrape_stiripesurse():
                             published_date,
                             number_of_views,
                             article_data['image_url'],
-                            'Stiri pe surse'
+                            'Stiri pe surse',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1489,16 +1512,20 @@ def scrape_gandul():
                         if article_image_url is None:
                             article_image_url = backup_image
 
+                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             article_data['title'],
                             article_url,
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Gândul'
+                            'Gândul',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1630,16 +1657,20 @@ def scrape_bursa():
                             print("\nBursa is updated.\n")
                             break
 
+                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             article_data['title'],
                             article_url,
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'Bursa'
+                            'Bursa',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1787,16 +1818,20 @@ def scrape_antena3():
                         if article_image_url is None:
                             article_image_url = backup_image
 
+                        content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        emotion_label = predict_label(content, tokenizer, model)
+
                         cur.execute("""
-                            INSERT INTO articles (title, url, author, published_date, image_url, source)
-                            VALUES (%s, %s, %s, %s, %s, %s)
+                            INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (
                             title,
                             article_url,
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Antena 3'
+                            'Antena 3',
+                            emotion_label
                         ))
                         conn.commit()
 
@@ -1829,7 +1864,8 @@ def scrape_antena3():
     cur.close()
     conn.close()
    
-source_scrapers = [scrape_adevarul, scrape_ziaredotcom, scrape_stiripesurse, scrape_digi24, 
+# source_scrapers = [scrape_ziaredotcom, scrape_digi24]
+source_scrapers = [scrape_ziaredotcom, scrape_adevarul, scrape_stiripesurse, scrape_digi24, 
                    scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3]
 
 #scrape_ziaredotcom()
