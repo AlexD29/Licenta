@@ -28,17 +28,17 @@ function Navbar() {
       </div>
       { !isLogin && !isSignup && (
         <div className="navbar-search">
-          <input type="text" placeholder="Search..." />
+          <input type="text" placeholder="Caută..." />
         </div>
       )}
       { !isLogin && !isSignup && (
       <div className="navbar-tabs">
         <ul>
-          <li><Link to="/explore">Explore</Link></li>
-          <li><a href="#">Your Interests</a></li>
-          <li><a href="#">About</a></li>
+          <li><Link to="/explore">Explorează</Link></li>
+          <li><a href="#">Interesele tale</a></li>
+          <li><a href="#">Despre</a></li>
           {isLoggedIn && (
-            <li><Link to="/account">Account</Link></li>
+            <li><Link to="/account">Cont</Link></li>
           )}
           {!isLoggedIn && (
             <li><Link to="/login">Login</Link></li>

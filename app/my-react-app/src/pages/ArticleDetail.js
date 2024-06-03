@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
-import './ArticleDetail.css'; // Import CSS file for styling
+import './ArticleDetail.css';
+import Footer from 'D:/Documents/Facultate/Licenta/app/my-react-app/src/Footer';
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -28,31 +29,31 @@ function ArticleDetail() {
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date(today);
-  
+    
     yesterday.setDate(yesterday.getDate() - 1);
-  
+    
     if (date.toDateString() === today.toDateString()) {
       // Format for today's date
-      const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-      return `Today, ${date.toLocaleTimeString('en-US', options)}`;
+      const options = { hour: 'numeric', minute: 'numeric', hour12: false };
+      return `Astăzi, ${date.toLocaleTimeString('ro-RO', options)}`;
     } else if (date.toDateString() === yesterday.toDateString()) {
       // Format for yesterday's date
-      const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-      return `Yesterday, ${date.toLocaleTimeString('en-US', options)}`;
+      const options = { hour: 'numeric', minute: 'numeric', hour12: false };
+      return `Ieri, ${date.toLocaleTimeString('ro-RO', options)}`;
     } else {
-      // Format the date to desired format, e.g., "19 April 2024, 15:30"
-      const dateFormat = { day: '2-digit', month: 'long', year: 'numeric' };
-      const timeFormat = { hour: 'numeric', minute: 'numeric', hour12: true };
-      const formattedDate = date.toLocaleDateString('en-US', dateFormat);
-      const formattedTime = date.toLocaleTimeString('en-US', timeFormat);
+      // Format the date to desired format, e.g., "19 aprilie 2024, 15:30"
+      const dateFormat = { day: 'numeric', month: 'long', year: 'numeric' }; // Change '2-digit' to 'numeric'
+      const timeFormat = { hour: 'numeric', minute: 'numeric', hour12: false };
+      const formattedDate = date.toLocaleDateString('ro-RO', dateFormat);
+      const formattedTime = date.toLocaleTimeString('ro-RO', timeFormat);
       return `${formattedDate}, ${formattedTime}`;
     }
   }
-
+  
   const getSourceIcon = (source) => {
     switch (source) {
       case 'Ziare.com':
-        return <img src="/source_icons/ziaredotcom_logo.jpg" alt="ziaredotcom" className="source-icon" />;
+        return <img src="/source_icons/ziaredotcom_logo.png" alt="ziaredotcom" className="source-icon" />;
       case 'PROTV':
         return <img src="/source_icons/protv_logo.png" alt="protv" className="source-icon" />;
       case 'Digi24':
@@ -110,41 +111,45 @@ function ArticleDetail() {
   }
 
   return (
-    <div className="article-container">
-      <h1 className="article-title">{article.title}</h1>
-      <div className="article-big-image-div">
-          <img src={article.image_url} alt="Article" className="article-big-image" />
-      </div>
-      <div className="article-info">
-        <p><strong>Author:</strong> {article.author}</p>
-        <p><strong>Published Date:</strong> {formatDate(article.published_date)}</p>
-        <p><strong>{getNumberOfViews(article)}</strong></p>
-        <p><strong>{getNumberOfComments(article)}</strong></p>
-      </div>
-      <div className="article-content">
-        <p>
-          {article.article_text && Array.isArray(article.article_text) ?
-            article.article_text.map(paragraph => paragraph.split(/\s+/)).flat().slice(0, maxWords).join(' ') :
-            "Article text not available"
-          }
-          {article.article_text && Array.isArray(article.article_text) && article.article_text.flatMap(paragraph => paragraph.split(/\s+/)).length > maxWords && '...'}
-          <span className="fade-out"></span>
-        </p>
-      </div>
-      <a href={article.url} className="full-article-button">Full Article</a>
-      <div className='article-info'>
-        <div className="tag-list">
-          {article.tags.map((tag, index) => (
-            <Link key={index} to={`/tags/${tag}`} className="tag-link">{tag}</Link>
-          ))}
+    <div className='main-container'>
+      <div className="article-container">
+        <h1 className="article-title">{article.title}</h1>
+        <div className="article-big-image-div">
+            <img src={article.image_url} alt="Article" className="article-big-image" />
         </div>
-        <div className="first-article-source-image">
-          {getSourceIcon(article.source)}
+        <div className="article-info">
+          <p><strong>Autor:</strong> {article.author}</p>
+          <p><strong>Data publicării:</strong> {formatDate(article.published_date)}</p>
+          <p><strong>{getNumberOfViews(article)}</strong></p>
+          <p><strong>{getNumberOfComments(article)}</strong></p>
         </div>
-        <div>
-          <p>{article.emotion}</p>
+        <div className="article-content">
+          <p>
+            {article.article_text && Array.isArray(article.article_text) ?
+              article.article_text.map(paragraph => paragraph.split(/\s+/)).flat().slice(0, maxWords).join(' ') :
+              "Article text not available"
+            }
+            {article.article_text && Array.isArray(article.article_text) && article.article_text.flatMap(paragraph => paragraph.split(/\s+/)).length > maxWords && '...'}
+            <span className="fade-out"></span>
+          </p>
         </div>
+        <a href={article.url} className="full-article-button" target="_blank" rel="noopener noreferrer">Articolul Complet</a>
+        <div className='article-info'>
+          <div className="tag-list">
+            {article.tags.map((tag, index) => (
+              <Link key={index} to={`/tags/${tag}`} className="tag-link">{tag}</Link>
+            ))}
+          </div>
+          <div className="first-article-source-image">
+            {getSourceIcon(article.source)}
+          </div>
+          <div>
+            <p>{article.emotion}</p>
+          </div>
+        </div>
+        
       </div>
+      <Footer />
     </div>
   );
 }

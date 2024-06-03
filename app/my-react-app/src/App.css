@@ -2,6 +2,18 @@
   text-align: center;
 }
 
+body {
+  font-family: 'Georgia', serif;
+  font-size: 16px; /* Adjust the base font size as needed */
+  line-height: 1.6; /* Ensures good readability */
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Helvetica', 'Arial', sans-serif;
+  font-weight: bold; /* Use bold weight for headlines */
+  margin-bottom: 0.5em;
+}
+
 .App-logo {
   height: 40vmin;
   pointer-events: none;

@@ -49,7 +49,7 @@ function TodayPiechart() {
 
   return (
     <div style={{ textAlign: 'center' }}>
-      <h2>Today's Articles Emotions</h2>
+      <h2>Emoțiile din articolele de astăzi</h2>
       <div style={{ display: 'inline-block' }}>
         <PieChart width={400} height={400}>
             <Pie

@@ -18,7 +18,7 @@ function Articles() {
   useEffect(() => {
     const fetchArticles = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/api/articles?page=${pageNumber}&limit=${30}`);
+        const response = await axios.get(`http://localhost:8000/api/articles?page=${pageNumber}&limit=${20}`);
         setArticles(response.data.articles);
         setTotalPages(response.data.totalPages);
         setCurrentPage(parseInt(page, 10) || 1);
@@ -121,60 +121,60 @@ function Articles() {
     return pages;
   };
 
-  const getSourceIcon = (source) => {
+  const getSourceIcon = (source, className) => {
     switch (source) {
       case 'Ziare.com':
-        return <img src="/source_icons/ziaredotcom_logo.jpg" alt="ziaredotcom" className="source-icon" />;
+        return <img src="/source_icons/ziaredotcom_logo.png" alt="ziaredotcom" className={className} />;
       case 'PROTV':
-        return <img src="/source_icons/protv_logo.png" alt="protv" className="source-icon" />;
+        return <img src="/source_icons/protv_logo.png" alt="protv" className={className} />;
       case 'Digi24':
-        return <img src="/source_icons/digi24_logo.png" alt="digi24" className="source-icon" />;
+        return <img src="/source_icons/digi24_logo.png" alt="digi24" className={className} />;
       case 'Mediafax':
-        return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className="source-icon" />;
+        return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className={className} />;
       case 'Adevarul':
-        return <img src="/source_icons/adevarul_logo.jpeg" alt="adevarul" className="source-icon" />;
+        return <img src="/source_icons/adevarul_logo.jpeg" alt="adevarul" className={className} />;
       case 'Observator':
-        return <img src="/source_icons/observator_logo.png" alt="observator" className="source-icon" />;
+        return <img src="/source_icons/observator_logo.png" alt="observator" className={className} />;
       case 'HotNews':
-        return <img src="/source_icons/hotnews_logo.png" alt="hotnews" className="source-icon" />;
+        return <img src="/source_icons/hotnews_logo.png" alt="hotnews" className={className} />;
       case 'Stiri pe surse':
-        return <img src="/source_icons/stiripesurse_logo.png" alt="stiripesurse" className="source-icon" />;
+        return <img src="/source_icons/stiripesurse_logo.png" alt="stiripesurse" className={className} />;
       case 'Gândul':
-        return <img src="/source_icons/gandul_logo.jpeg" alt="gandul" className="source-icon" />;
+        return <img src="/source_icons/gandul_logo.jpeg" alt="gandul" className={className} />;
       case 'Bursa':
-        return <img src="/source_icons/bursa_logo.jpg" alt="bursa" className="source-icon" />;
+        return <img src="/source_icons/bursa_logo.jpg" alt="bursa" className={className} />;
       case 'Antena 3':
-        return <img src="/source_icons/antena3_logo.jpg" alt="antena3" className="source-icon" />;
+        return <img src="/source_icons/antena3_logo.jpg" alt="antena3" className={className} />;
       default:
         return <span>{source}</span>;
     }
-  };
+  };  
 
   function formatDate(dateString) {
     const date = new Date(dateString);
     const today = new Date();
     const yesterday = new Date(today);
-  
+    
     yesterday.setDate(yesterday.getDate() - 1);
-  
+    
     if (date.toDateString() === today.toDateString()) {
       // Format for today's date
-      const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-      return `Today, ${date.toLocaleTimeString('en-US', options)}`;
+      const options = { hour: 'numeric', minute: 'numeric', hour12: false };
+      return `Astăzi, ${date.toLocaleTimeString('ro-RO', options)}`;
     } else if (date.toDateString() === yesterday.toDateString()) {
       // Format for yesterday's date
-      const options = { hour: 'numeric', minute: 'numeric', hour12: true };
-      return `Yesterday, ${date.toLocaleTimeString('en-US', options)}`;
+      const options = { hour: 'numeric', minute: 'numeric', hour12: false };
+      return `Ieri, ${date.toLocaleTimeString('ro-RO', options)}`;
     } else {
-      // Format the date to desired format, e.g., "19 April 2024, 15:30"
-      const dateFormat = { day: '2-digit', month: 'long', year: 'numeric' };
-      const timeFormat = { hour: 'numeric', minute: 'numeric', hour12: true };
-      const formattedDate = date.toLocaleDateString('en-US', dateFormat);
-      const formattedTime = date.toLocaleTimeString('en-US', timeFormat);
+      // Format the date to desired format, e.g., "19 aprilie 2024, 15:30"
+      const dateFormat = { day: 'numeric', month: 'long', year: 'numeric' }; // Change '2-digit' to 'numeric'
+      const timeFormat = { hour: 'numeric', minute: 'numeric', hour12: false };
+      const formattedDate = date.toLocaleDateString('ro-RO', dateFormat);
+      const formattedTime = date.toLocaleTimeString('ro-RO', timeFormat);
       return `${formattedDate}, ${formattedTime}`;
     }
   }
-  
+    
   const [firstArticle, ...otherArticles] = articles;
 
 
@@ -197,7 +197,7 @@ function Articles() {
         <div className="home-first-part">
             <div className="home-left-side">
                 {firstArticle && (
-                    <Link key={firstArticle.id} to={`/article/${firstArticle.id}`}>
+                    <Link key={firstArticle.id} to={`/article/${firstArticle.id}`} className="article-link">
                       <div className="first-article-card">
                         <div className="first-article-image-div">
                           <img src={firstArticle.image_url} alt={"image"} className="first-article-image" />
@@ -206,10 +206,7 @@ function Articles() {
                           <h3 className="article-text">{firstArticle.title}</h3>
                           <p className="article-text">{formatDate(firstArticle.published_date)}</p>
                           <div className="first-article-source-image">
-                            {getSourceIcon(firstArticle.source)}
-                          </div>
-                          <div>
-                            <p>{firstArticle.emotion}</p>
+                            {getSourceIcon(firstArticle.source, "first-article-source-icon")}
                           </div>
                         </div>
                       </div>
@@ -222,21 +219,18 @@ function Articles() {
         </div>
         <div className="home-second-part">
           {otherArticles.map((article) => (
-            <Link key={article.id} to={`/article/${article.id}`}>
-              <div className="article-card">
-                    <div className="article-image-div">
-                        <img src={article.image_url} className="article-image" />
-                    </div>
-                    <div className="article-details-div">
-                        <h3 className="article-text">{article.title}</h3>
-                        <p className="article-text">{formatDate(article.published_date)}</p>
-                        <div className="article-source-image">
-                          {getSourceIcon(article.source)}
-                        </div>
-                        <div>
-                          <p>{article.emotion}</p>
-                        </div>
-                    </div>
+            <Link key={article.id} to={`/article/${article.id}`} className="article-link">
+              <div className={`article-card ${article.emotion.toLowerCase()}`}>
+                <div className="article-image-div">
+                  <img src={article.image_url} className="article-image" />
+                </div>
+                <div className="article-details-div">
+                  <h3 className="article-text">{article.title}</h3>
+                  <p className="article-text">{formatDate(article.published_date)}</p>
+                </div>
+                <div className="article-source-image">
+                  {getSourceIcon(article.source, "source-icon")}
+                </div>
               </div>
             </Link>
           ))}
