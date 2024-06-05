@@ -1,3 +1,4 @@
+import json
 import random
 import re
 import string
@@ -201,7 +202,7 @@ def filter_and_normalize_tag(tag):
     tag = unicodedata.normalize('NFKD', tag).encode('ASCII', 'ignore').decode('utf-8')
     return tag
 
-def match_tags_to_entities(tags, article_id, cur, conn):
+def match_tags_to_entities(tags, article_id, published_date, cur, conn):
     unmatched_tags = []
     for tag in tags:
         entity_id = None
@@ -209,7 +210,7 @@ def match_tags_to_entities(tags, article_id, cur, conn):
         for word in tag_words:
             entity_id, table_name = match_word_to_entities(word, cur)
             if entity_id:
-                insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn)
+                insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, published_date)
                 break
         if not entity_id:
             unmatched_tags.append(tag)
@@ -241,40 +242,75 @@ def match_word_to_entities(word, cur):
     
     return None, None
 
-def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn):
+def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, published_date):
     cur.execute("""
-        INSERT INTO tags (article_id, tag_text)
-        VALUES (%s, %s)
-        RETURNING id
-    """, (article_id, tag))
-    tag_id = cur.fetchone()[0]
+        SELECT id, count, timestamps
+        FROM tags
+        WHERE tag_text = %s
+    """, (tag,))
+    result = cur.fetchone()
+
+    published_date_str = published_date.isoformat()
+
+    if result:
+        tag_id, count, timestamps = result
+        timestamps.append(published_date_str)
+        cur.execute("""
+            UPDATE tags
+            SET count = count + 1, timestamps = %s
+            WHERE id = %s
+        """, (json.dumps(timestamps), tag_id))
+        conn.commit()
+    else:
+        cur.execute("""
+            INSERT INTO tags (article_id, tag_text, count, timestamps)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """, (article_id, tag, 1, json.dumps([published_date_str])))
+        tag_id = cur.fetchone()[0]
+        conn.commit()
+
+        if table_name == "politicians":
+            cur.execute("""
+                INSERT INTO tag_politician (tag_id, politician_id)
+                VALUES (%s, %s)
+            """, (tag_id, entity_id))
+        elif table_name == "cities":
+            cur.execute("""
+                INSERT INTO tag_city (tag_id, city_id)
+                VALUES (%s, %s)
+            """, (tag_id, entity_id))
+        elif table_name == "political_parties":
+            cur.execute("""
+                INSERT INTO tag_political_parties (tag_id, political_party_id)
+                VALUES (%s, %s)
+            """, (tag_id, entity_id))
     
-    if table_name == "politicians":
-        cur.execute("""
-            INSERT INTO tag_politician (tag_id, politician_id)
-            VALUES (%s, %s)
-        """, (tag_id, entity_id))
-        conn.commit()
-    elif table_name == "cities":
-        cur.execute("""
-            INSERT INTO tag_city (tag_id, city_id)
-            VALUES (%s, %s)
-        """, (tag_id, entity_id))
-        conn.commit()
-    elif table_name == "political_parties":
-        cur.execute("""
-            INSERT INTO tag_political_parties (tag_id, political_party_id)
-            VALUES (%s, %s)
-        """, (tag_id, entity_id))
-        conn.commit()
+    conn.commit()
 
 def insert_unmatched_tags(unmatched_tags, article_id, cur, conn):
     for tag_text in unmatched_tags:
         cur.execute("""
-            INSERT INTO tags (article_id, tag_text)
-            VALUES (%s, %s)
-        """, (article_id, tag_text))
-        conn.commit()
+            SELECT id, count
+            FROM tags
+            WHERE tag_text = %s
+        """, (tag_text,))
+        result = cur.fetchone()
+
+        if result:
+            tag_id, count = result
+            cur.execute("""
+                UPDATE tags
+                SET count = count + 1
+                WHERE id = %s
+            """, (tag_id,))
+            conn.commit()
+        else:
+            cur.execute("""
+                INSERT INTO tags (article_id, tag_text, count)
+                VALUES (%s, %s, %s)
+            """, (article_id, tag_text, 1))
+            conn.commit()
 
 def extract_article_id_ziaredotcom(article_url):
     segments = article_url.split('/')
@@ -391,7 +427,7 @@ def scrape_ziaredotcom():
                                 """, (article_id, paragraph_text))
                                 conn.commit()
 
-                            match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                            match_tags_to_entities(article_data['tags'], article_id, parse_published_date, cur, conn)
                             
                             for comment_text in article_data['comments']:
                                 cur.execute("""
@@ -530,7 +566,7 @@ def scrape_digi24():
                             """, (article_id, paragraph_text))
                             conn.commit()
                         
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, article_data['published_date'], cur, conn)
                         
                         print("\nDIGI 24 INSERTED.\n")
                     else:
@@ -676,7 +712,7 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                         """, (article_id, paragraph_text))
                         conn.commit()
 
-                    match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                    match_tags_to_entities(article_data['tags'], article_id, article_data['published_date'], cur, conn)
 
                     print("\nMEDIAFAX INSERTED.\n")
                 else:
@@ -797,7 +833,7 @@ def scrape_protv():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         print("PROTV INSERTED.\n")
                     else:
@@ -974,7 +1010,7 @@ def scrape_adevarul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1107,7 +1143,7 @@ def scrape_observator():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         print("OBSERVATOR INSERTED.\n")
                     else:
@@ -1250,7 +1286,7 @@ def scrape_hotnews():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1357,7 +1393,10 @@ def scrape_stiripesurse():
                 article_url = article.find('a')['href']
                 
                 views_span = article.find('span', class_='views')
-                number_of_views = views_span.get_text(strip=True)
+                if views_span:
+                    number_of_views = views_span.get_text(strip=True)
+                else: 
+                    number_of_views = 0
 
                 article_data = scrape_article_stiripesurse(article_url)
                 if article_data:
@@ -1396,7 +1435,7 @@ def scrape_stiripesurse():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         print("STIRI PE SURSE INSERTED.\n")
                     else:
@@ -1539,7 +1578,7 @@ def scrape_gandul():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         print("GANDUL INSERTED.\n")
                     else:
@@ -1684,7 +1723,7 @@ def scrape_bursa():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         for comment_text in article_data['comments']:
                             cur.execute("""
@@ -1845,7 +1884,7 @@ def scrape_antena3():
                             """, (article_id, paragraph_text))
                             conn.commit()
 
-                        match_tags_to_entities(article_data['tags'], article_id, cur, conn)
+                        match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
                         print("ANTENA 3 INSERTED.\n")
                     else:

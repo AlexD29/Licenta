@@ -2,6 +2,7 @@ import React from 'react';
 import './Navbar.css';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import SearchBar from './SearchBar';
 
 function Navbar() {
   const location = useLocation();
@@ -12,6 +13,26 @@ function Navbar() {
   const handleLogout = () => {
     document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     logout();
+  };
+
+  const fetchSuggestions = async (query) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/suggestions?query=${query}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch suggestions');
+      }
+      const data = await response.json();
+      console.log(data)
+      return data;
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      return [];
+    }
+  }; 
+
+  const handleSearch = (searchTerm) => {
+    console.log(`Searching for: ${searchTerm}`);
   };
 
   return (
@@ -27,9 +48,7 @@ function Navbar() {
         </Link>
       </div>
       { !isLogin && !isSignup && (
-        <div className="navbar-search">
-          <input type="text" placeholder="Caută..." />
-        </div>
+        <SearchBar onSearch={handleSearch} fetchSuggestions={fetchSuggestions}/>
       )}
       { !isLogin && !isSignup && (
       <div className="navbar-tabs">
