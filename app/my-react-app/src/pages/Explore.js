@@ -39,40 +39,40 @@ const Explore = () => {
         <div className='main-container'>
             <div className="explore-container">
                 <div className="card">
-                <Link to="/elections">
+                <Link to="/alegeri/toate-alegerile">
                     <div className='title-div'>
-                        <h2 className="card-title">2024 Elections</h2>
+                        <h2 className="card-title">Alegeri 2024</h2>
                     </div>
                     <div className="main-image">
                         <img src="./explore/alegeri-2024.jpg" alt="Election 2024" className="card-image" />
                     </div>
-                    <ul>
+                    <ul className='elections-list'>
                         <li className="elections-list-item">
                             <img src="./explore/alegeri-europarlamentare.jpg" alt="Image" className="list-image" />
-                            <div>
-                                <p>European Parliamentary Elections</p>
-                                <p>June 9</p>
+                            <div className='elections-text-div'>
+                                <p>Alegeri Europarlamentare</p>
+                                <p>9 Iunie</p>
                             </div>
                         </li>
                         <li className="elections-list-item">
                             <img src="./explore/alegeri-locale.jpg" alt="Image" className="list-image" />
-                            <div>
-                                <p>Local Elections</p>
-                                <p>June 9</p>
+                            <div className='elections-text-div'>
+                                <p>Alegeri Locale</p>
+                                <p>9 Iunie</p>
                             </div>
                         </li>
                         <li className="elections-list-item">
-                            <img src="./explore/alegeri-prezidentiale.jpg" alt="Image" className="list-image" />
-                            <div>
-                                <p>Presidential Elections</p>
-                                <p>September 15 and 29</p>
+                            <img src="./explore/alegeri-prezidențiale.jpg" alt="Image" className="list-image" />
+                            <div className='elections-text-div'>
+                                <p>Alegeri Prezidențiale</p>
+                                <p>15 și 29 Septembrie</p>
                             </div>
                         </li>
                         <li className="elections-list-item">
                             <img src="./explore/alegeri-parlamentare.jpg" alt="Image" className="list-image" />
-                            <div>
-                                <p>Parliamentary Elections</p>
-                                <p>December 8</p>
+                            <div className='elections-text-div'>
+                                <p>Alegeri Parlamentare</p>
+                                <p>8 Decembrie</p>
                             </div>
                         </li>
                     </ul>
@@ -81,13 +81,13 @@ const Explore = () => {
                 <div className="card">
                     <Link to="/politicians" className='link-card'>
                         <div className='title-div'>
-                            <h2 className="card-title">Politicians</h2>
+                            <h2 className="card-title">Politicieni</h2>
                         </div>
                         <div className="main-image">
                             <img src="./explore/politicians-picture.jpg" alt="Election 2024" className="card-image" />
                         </div>
                         <div className="top-3-this-week-div">
-                            <h3 className='top-3-this-week'>Top 3 This Week</h3>
+                            <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
                         <ul>
                             {data.politicians.slice(0, 3).map(politician => (
@@ -100,20 +100,20 @@ const Explore = () => {
                             ))}
                         </ul>
                         <div className="more-button">
-                            <p>+ more</p>
+                            <p>+ mai mulți</p>
                         </div>
                     </Link>
                 </div>
                 <div className="card">
                     <Link to="/political-parties" className='link-card'>
                         <div className='title-div'>
-                            <h2 className="card-title">Political Parties</h2>
+                            <h2 className="card-title">Partide Politice</h2>
                         </div>
                         <div className="main-image">
                             <img src="./explore/political_parties-picture.jpg" alt="Election 2024" className="card-image" />
                         </div>
                         <div className="top-3-this-week-div">
-                            <h3 className='top-3-this-week'>Top 3 This Week</h3>
+                            <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
                         <ul>
                             {data.political_parties.slice(0,3).map(party => (
@@ -126,20 +126,20 @@ const Explore = () => {
                             ))}
                         </ul>
                         <div className="more-button">
-                            <p>+ more</p>
+                            <p>+ mai multe</p>
                         </div>
                     </Link>
                 </div>
                 <div className="card">
                     <Link to="/cities" className='link-card'>
                         <div className='title-div'>
-                            <h2 className="card-title">Cities</h2>
+                            <h2 className="card-title">Orașe</h2>
                         </div>
                         <div className="main-image">
                             <img src="./explore/cities-picture.jpg" alt="Election 2024" className="card-image" />
                         </div>
                         <div className="top-3-this-week-div">
-                            <h3 className='top-3-this-week'>Top 3 This Week</h3>
+                            <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
                         <ul>
                             {data.cities.slice(0,3).map(city => (
@@ -150,7 +150,7 @@ const Explore = () => {
                             ))}
                         </ul>
                         <div className="more-button">
-                            <p>+ more</p>
+                            <p>+ mai multe</p>
                         </div>
                     </Link>
                 </div>

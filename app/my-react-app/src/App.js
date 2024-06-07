@@ -11,6 +11,7 @@ import './App.css';
 import Politicians from './pages/Politicians';
 import Political_parties from './pages/Political-parties';
 import Cities from './pages/Cities';
+import Elections from './pages/Elections';
 
 function App() {
   return (
@@ -27,6 +28,8 @@ function App() {
           <Route path="/politicians" element={<Politicians />} />
           <Route path="/political-parties" element={<Political_parties />} />
           <Route path="/cities" element={<Cities />} />
+          <Route path="/alegeri/:category" element={<Elections />} />
+          <Route path="/alegeri/:category/page/:page" element={<Elections />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

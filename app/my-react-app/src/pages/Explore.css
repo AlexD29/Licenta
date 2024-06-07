@@ -42,7 +42,7 @@
     margin-bottom: 10px;
 }
 
-ul {
+.elections-list {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -54,7 +54,7 @@ ul {
     padding: 10px;
 }
 
-li:last-child{
+.elections-list-item:last-child{
     margin-bottom: 15px;
 }
 
@@ -69,16 +69,16 @@ li:last-child{
     color: black;
 }
 
-li div {
+.elections-text-div {
     flex-grow: 1;
 }
 
-li div p {
+.elections-text-div p {
     margin: 0;
     line-height: 1.5;
 }
 
-li div p:last-child {
+.elections-text-div p:last-child {
     font-style: italic;
 }
 

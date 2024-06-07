@@ -212,11 +212,31 @@ def match_tags_to_entities(tags, article_id, published_date, cur, conn):
             if entity_id:
                 insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, published_date)
                 break
+            elif is_election_tag(tag):
+                entity_id = match_election(tag)
+                insert_tag_and_entity(tag, entity_id, 'elections', article_id, cur, conn, published_date)
+                break
         if not entity_id:
             unmatched_tags.append(tag)
     
     if unmatched_tags:
         insert_unmatched_tags(unmatched_tags, article_id, cur, conn)
+
+def is_election_tag(tag):
+    election_keywords = ['alegeri', 'europarlamentare', 'locale', 'prezidentiale', 'parlamentare']
+    return any(keyword in tag.lower() for keyword in election_keywords)
+
+def match_election(tag):
+    if 'europarlamentare' in tag.lower():
+        return 2
+    elif 'locale' in tag.lower():
+        return 3
+    elif 'prezidentiale' in tag.lower():
+        return 4
+    elif 'parlamentare' in tag.lower():
+        return 5
+    else:
+        return 1
 
 def match_word_to_entities(word, cur):
     def normalized_similarity(string1, string2):
@@ -283,6 +303,11 @@ def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, pub
         elif table_name == "political_parties":
             cur.execute("""
                 INSERT INTO tag_political_parties (tag_id, political_party_id)
+                VALUES (%s, %s)
+            """, (tag_id, entity_id))
+        elif table_name == "elections":
+            cur.execute("""
+                INSERT INTO tag_election (tag_id, election_id)
                 VALUES (%s, %s)
             """, (tag_id, entity_id))
     

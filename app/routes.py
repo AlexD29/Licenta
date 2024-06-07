@@ -659,6 +659,93 @@ def cities_data():
         print("Error fetching explore data:", e)
         return jsonify({"error": "Failed to fetch explore data"}), 500
 
+@app.route('/api/alegeri/<category>', methods=['GET'])
+def elections_data(category):
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        offset = (page - 1) * limit
+
+        cur = g.db_cursor
+
+        if category.lower() == "toate alegerile":
+            cur.execute("SELECT tag_text FROM tags WHERE id IN (SELECT tag_id FROM tag_election)")
+        else:
+            category_name = category.replace('-', ' ')
+            cur.execute("SELECT id FROM elections WHERE name = %s", (category_name,))
+            election_id = cur.fetchone()
+            
+            if not election_id:
+                return jsonify({"error": "Invalid election category"}), 400
+            
+            election_id = election_id[0]
+
+            # Fetch the tags associated with this election ID
+            cur.execute("SELECT tag_text FROM tags WHERE id IN (SELECT tag_id FROM tag_election WHERE election_id = %s)", (election_id,))
+        
+        tags = [tag[0] for tag in cur.fetchall()]
+
+        if not tags:
+            return jsonify({"articles": [], "totalPages": 0})
+
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text = ANY(%s)
+            GROUP BY a.id
+            ORDER BY a.published_date DESC
+            LIMIT %s OFFSET %s
+        """, (tags, limit, offset))
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            cur.execute("SELECT tag_text FROM tags WHERE article_id = %s", (article[0],))
+            article_tags = [tag[0] for tag in cur.fetchall()]
+
+            cur.execute("SELECT paragraph_text FROM article_paragraphs WHERE article_id = %s", (article[0],))
+            article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+            cur.execute("SELECT comment_text FROM comments WHERE article_id = %s", (article[0],))
+            comments = [comment[0] for comment in cur.fetchall()]
+
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': article_tags,
+                'image_url': article[6],
+                'article_text': article_text,
+                'comments': comments,
+                'emotion': article[8],
+                'source': article[7]
+            }
+            articles_list.append(article_dict)
+
+        # Count total articles that match these tags
+        cur.execute("""
+            SELECT COUNT(DISTINCT a.id)
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text = ANY(%s)
+        """, (tags,))
+        total_articles = cur.fetchone()[0]
+
+        total_pages = (total_articles + limit - 1) // limit
+
+        return jsonify({
+            'articles': articles_list,
+            'totalPages': total_pages
+        })
+
+    except Exception as e:
+        print("Error fetching articles by category:", e)
+        return jsonify({"error": "Failed to fetch articles by category"}), 500
+
 def get_articles_by_politician_id(politician_id):
     try:
         cur = g.db_cursor

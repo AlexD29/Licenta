@@ -10,6 +10,7 @@ conn = psycopg2.connect(
 def delete_rows(conn):
     try:
         cur = conn.cursor()
+        cur.execute("DELETE FROM tag_election")
         cur.execute("DELETE FROM tag_politician")
         cur.execute("DELETE FROM tag_city")
         cur.execute("DELETE FROM tag_political_parties")
