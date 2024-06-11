@@ -38,12 +38,21 @@ def is_published_this_year(parsed_published_date):
     current_year = datetime.datetime.now().year
     return parsed_published_date.year == current_year
 
-def get_latest_article_date(source, cur):
-    cur.execute("""
-        SELECT MAX(published_date) FROM articles WHERE source = %s
-    """, (source,))
-    latest_date = cur.fetchone()[0]
-    return latest_date
+def get_latest_article_date(source_name, cur):
+    cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+    source_id_result = cur.fetchone()
+    
+    if source_id_result:
+        source_id = source_id_result[0]
+        
+        cur.execute("""
+            SELECT MAX(published_date) FROM articles WHERE source = %s
+        """, (source_id,))
+        latest_date = cur.fetchone()[0]
+        
+        return latest_date
+    else:
+        raise ValueError(f"Source {source_name} not found in sources table.")
 
 def remove_image_dimensions(image_url):
     return re.sub(r'\b(w|h)=\d+\b', '', image_url)
@@ -400,10 +409,10 @@ def scrape_comments_ziaredotcom(article_id):
 def scrape_ziaredotcom():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Ziare.com'
     url = "https://ziare.com/politica/stiri-politice/stiri/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Ziare.com", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     while not stop_scraping:
         response = requests.get(url)
         if response.status_code == 200:
@@ -419,14 +428,18 @@ def scrape_ziaredotcom():
                     if is_published_this_year(parsed_published_date):
                         if latest_article_date is not None and parsed_published_date <= latest_article_date:
                             stop_scraping = True
-                            print("Ziare.com is UPDATED.")
+                            print("Ziare.com - UPDATED.")
                             break
                         article_url = link.a['href']
                         article_data = scrape_article_ziaredotcom(article_url)
                         if article_data:
                             content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                             emotion_label = predict_label(content, tokenizer, model)
-
+                            
+                            cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                            source_id_result = cur.fetchone()
+                            source_id = source_id_result[0]
+                                
                             cur.execute("""
                                 INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source, emotion)
                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -437,7 +450,7 @@ def scrape_ziaredotcom():
                                 parsed_published_date,
                                 extract_number_from_string(article_data.get('number_of_views', 0)),
                                 article_data['image_url'],
-                                'Ziare.com',
+                                source_id,
                                 emotion_label
                             ))
                             conn.commit()
@@ -460,7 +473,7 @@ def scrape_ziaredotcom():
                                     VALUES (%s, %s)
                                 """, (article_id, comment_text))
                                 conn.commit()
-                            print("ZIARE.COM INSERTED.\n")
+                            print(f"\n{source_name} INSERTED.\n")
                         else:
                             print("Failed to scrape article:", article_url)
                     else:
@@ -541,10 +554,10 @@ def clean_title_digi24(title):
 def scrape_digi24():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Digi24'
     url = "https://www.digi24.ro/stiri/actualitate/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Digi24", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     while not stop_scraping:
         response = requests.get(url)
         if response.status_code == 200:
@@ -561,11 +574,15 @@ def scrape_digi24():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nDigi24 is updated.\n")
+                            print("\nDigi24 - UPDATED.\n")
                             break
 
                         content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
                         
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -576,7 +593,7 @@ def scrape_digi24():
                             article_data['author'],
                             article_data['published_date'],
                             article_data['image_url'],
-                            "Digi24",
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -593,7 +610,7 @@ def scrape_digi24():
                         
                         match_tags_to_entities(article_data['tags'], article_id, article_data['published_date'], cur, conn)
                         
-                        print("\nDIGI 24 INSERTED.\n")
+                        print(f"\n{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -611,7 +628,7 @@ def scrape_digi24():
     conn.close()
 
 def check_if_updated_mediafax(url):
-    latest_article_date = get_latest_article_date("mediafax")
+    latest_article_date = get_latest_article_date("Mediafax")
     print(latest_article_date)
     response = requests.get(url)
     if response.status_code == 200:
@@ -686,7 +703,7 @@ def scrape_mediafax():
     month_url = f"{base_url}2024/{current_month:02d}"
     print(month_url)
     if check_if_updated_mediafax(month_url):
-        print("\nMediaFax is updated.\n")
+        print("\nMediaFax - UPDATED.\n")
     else:
         for month in range(current_month, 0, -1):
             month_url = f"{base_url}2024/{month:02d}"
@@ -712,6 +729,11 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                     content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                     emotion_label = predict_label(content, tokenizer, model)
 
+                    source_name = 'Mediafax'
+                    cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                    source_id_result = cur.fetchone()
+                    source_id = source_id_result[0]
+
                     cur.execute("""
                         INSERT INTO articles (title, url, author, number_of_views, published_date, image_url, source, emotion)
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -722,7 +744,7 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                         article_data['number_of_views'],
                         article_data['published_date'],
                         article_data['image_url'],
-                        'Mediafax', 
+                        source_id, 
                         emotion_label
                     ))
                     conn.commit()
@@ -739,7 +761,7 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
 
                     match_tags_to_entities(article_data['tags'], article_id, article_data['published_date'], cur, conn)
 
-                    print("\nMEDIAFAX INSERTED.\n")
+                    print(f"\n{source_name} INSERTED.\n")
                 else:
                     print("Failed to scrape article:", article_url)
             month_url = get_next_page_mediafax(month_url)
@@ -799,10 +821,10 @@ def scrape_article_protv(article_url):
 def scrape_protv():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'PROTV'
     url = "https://stirileprotv.ro/stiri/politic/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("PROTV", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -825,7 +847,7 @@ def scrape_protv():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nPROTV is updated.\n")
+                            print("\nPROTV - UPDATED.\n")
                             break
                         article_image_url = article_data['image_url']
                         if article_image_url is None:
@@ -833,6 +855,10 @@ def scrape_protv():
 
                         content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -843,7 +869,7 @@ def scrape_protv():
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'PROTV',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -860,7 +886,7 @@ def scrape_protv():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        print("PROTV INSERTED.\n")
+                        print(f"\n{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -978,10 +1004,10 @@ def scrape_comments_adevarul(article_id):
 def scrape_adevarul():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Adevărul'
     url = "https://adevarul.ro/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Adevarul", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1005,11 +1031,15 @@ def scrape_adevarul():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nAdevarul is updated.\n")
+                            print("\nAdevarul - UPDATED.\n")
                             break
 
                         content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1020,7 +1050,7 @@ def scrape_adevarul():
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'Adevarul',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1043,7 +1073,7 @@ def scrape_adevarul():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("ADEVARUL INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1112,10 +1142,10 @@ def scrape_article_observator(article_url):
 def scrape_observator():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Observator'
     url = "https://observatornews.ro/politic/"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Observator", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1135,7 +1165,7 @@ def scrape_observator():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nObservator is updated.\n")
+                            print("\nObservator - UPDATED.\n")
                             break
                         article_image_url = article_data['image_url']
                         if article_image_url is None:
@@ -1143,6 +1173,10 @@ def scrape_observator():
 
                         content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1153,7 +1187,7 @@ def scrape_observator():
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Observator',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1170,7 +1204,7 @@ def scrape_observator():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        print("OBSERVATOR INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1252,10 +1286,10 @@ def scrape_article_hotnews(article_url):
 def scrape_hotnews():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'HotNews'
     url = "https://www.hotnews.ro/politic"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("HotNews", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1281,11 +1315,15 @@ def scrape_hotnews():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nHotNews is updated.\n")
+                            print("\nHotNews - UPDATED.\n")
                             break
 
                         content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1296,7 +1334,7 @@ def scrape_hotnews():
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'HotNews',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1319,7 +1357,7 @@ def scrape_hotnews():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("HOTNEWS INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1394,12 +1432,12 @@ def scrape_article_stiripesurse(article_url):
 def scrape_stiripesurse():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Știri pe surse'
     url = "https://www.stiripesurse.ro/politica/page/1"
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     headers = {"User-Agent": custom_user_agent}
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Stiri pe surse", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, headers=headers)
@@ -1429,11 +1467,15 @@ def scrape_stiripesurse():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nStiri pe surse is updated.\n")
+                            print("\nStiri pe surse - UPDATED.\n")
                             break
 
                         content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, number_of_views, image_url, source, emotion)
@@ -1445,7 +1487,7 @@ def scrape_stiripesurse():
                             published_date,
                             number_of_views,
                             article_data['image_url'],
-                            'Stiri pe surse',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1462,7 +1504,7 @@ def scrape_stiripesurse():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        print("STIRI PE SURSE INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1539,10 +1581,10 @@ def scrape_article_gandul(article_url):
 def scrape_gandul():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Gândul'
     url = "https://www.gandul.ro/politica/page/1"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Gândul", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url)
@@ -1569,7 +1611,7 @@ def scrape_gandul():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nGândul is updated.\n")
+                            print("\nGândul - UPDATED.\n")
                             break
 
                         article_image_url = article_data['image_url']
@@ -1578,6 +1620,10 @@ def scrape_gandul():
 
                         content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1588,7 +1634,7 @@ def scrape_gandul():
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Gândul',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1605,7 +1651,7 @@ def scrape_gandul():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        print("GANDUL INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1689,10 +1735,10 @@ def scrape_article_bursa(article_url):
 def scrape_bursa():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Bursa'
     url = "https://www.bursa.ro/politica"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Bursa", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, verify=False)
@@ -1718,11 +1764,15 @@ def scrape_bursa():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nBursa is updated.\n")
+                            print("\nBursa - UPDATED.\n")
                             break
 
                         content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1733,7 +1783,7 @@ def scrape_bursa():
                             article_data['author'],
                             published_date,
                             article_data['image_url'],
-                            'Bursa',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1756,7 +1806,7 @@ def scrape_bursa():
                                 VALUES (%s, %s)
                             """, (article_id, comment_text))
                             conn.commit()
-                        print("BURSA INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1845,12 +1895,12 @@ def scrape_article_antena3(article_url):
 def scrape_antena3():
     conn = create_db_connection()
     cur = conn.cursor()
-
+    source_name = 'Antena 3'
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     headers = {"User-Agent": custom_user_agent}
     url = "https://www.antena3.ro/politica/pagina-1"
     stop_scraping = False
-    latest_article_date = get_latest_article_date("Antena 3", cur)
+    latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
     while not stop_scraping:
         response = requests.get(url, headers=headers)
@@ -1875,7 +1925,7 @@ def scrape_antena3():
                     if is_published_this_year(published_date):
                         if latest_article_date is not None and published_date <= latest_article_date:
                             stop_scraping = True
-                            print("\nAntena 3 is updated.\n")
+                            print("\nAntena 3 - UPDATED.\n")
                             break
 
                         article_image_url = article_data['image_url']
@@ -1884,6 +1934,10 @@ def scrape_antena3():
 
                         content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                         emotion_label = predict_label(content, tokenizer, model)
+
+                        cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
+                        source_id_result = cur.fetchone()
+                        source_id = source_id_result[0]
 
                         cur.execute("""
                             INSERT INTO articles (title, url, author, published_date, image_url, source, emotion)
@@ -1894,7 +1948,7 @@ def scrape_antena3():
                             article_data['author'],
                             published_date,
                             article_image_url,
-                            'Antena 3',
+                            source_id,
                             emotion_label
                         ))
                         conn.commit()
@@ -1911,7 +1965,7 @@ def scrape_antena3():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        print("ANTENA 3 INSERTED.\n")
+                        print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
                         break
@@ -1932,17 +1986,7 @@ def scrape_antena3():
 source_scrapers = [scrape_ziaredotcom, scrape_adevarul, scrape_stiripesurse, scrape_digi24, 
                    scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3]
 
-#scrape_ziaredotcom()
-#scrape_digi24()
 #scrape_mediafax() # - are o problema la schimbarea paginii + aparent are problema ca la un moment dat zice ca date
 # element e None....
-#scrape_protv()
-#scrape_adevarul()
-#scrape_observator()
-#scrape_hotnews()
-#scrape_stiripesurse()
-#scrape_gandul()
-#scrape_bursa()
-#scrape_antena3()
 
 

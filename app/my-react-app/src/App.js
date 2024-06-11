@@ -9,8 +9,9 @@ import Signup from './Signup';
 import Explore from './pages/Explore';
 import './App.css';
 import Politicians from './pages/Politicians';
-import Political_parties from './pages/Political-parties';
+import PoliticalParties from './pages/PoliticalParties';
 import Cities from './pages/Cities';
+import Sources from './pages/Sources';
 import Elections from './pages/Elections';
 
 function App() {
@@ -26,8 +27,9 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/politicians" element={<Politicians />} />
-          <Route path="/political-parties" element={<Political_parties />} />
+          <Route path="/political-parties" element={<PoliticalParties />} />
           <Route path="/cities" element={<Cities />} />
+          <Route path="/sources" element={<Sources />} />
           <Route path="/alegeri/:category" element={<Elections />} />
           <Route path="/alegeri/:category/page/:page" element={<Elections />} />
         </Routes>

@@ -49,35 +49,6 @@ function ArticleDetail() {
       return `${formattedDate}, ${formattedTime}`;
     }
   }
-  
-  const getSourceIcon = (source) => {
-    switch (source) {
-      case 'Ziare.com':
-        return <img src="/source_icons/ziaredotcom_logo.png" alt="ziaredotcom" className="source-icon" />;
-      case 'PROTV':
-        return <img src="/source_icons/protv_logo.png" alt="protv" className="source-icon" />;
-      case 'Digi24':
-        return <img src="/source_icons/digi24_logo.png" alt="digi24" className="source-icon" />;
-      case 'Mediafax':
-        return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className="source-icon" />;
-      case 'Adevarul':
-        return <img src="/source_icons/adevarul_logo.jpeg" alt="adevarul" className="source-icon" />;
-      case 'Observator':
-        return <img src="/source_icons/observator_logo.png" alt="observator" className="source-icon" />;
-      case 'HotNews':
-        return <img src="/source_icons/hotnews_logo.png" alt="hotnews" className="source-icon" />;
-      case 'Stiri pe surse':
-        return <img src="/source_icons/stiripesurse_logo.png" alt="stiripesurse" className="source-icon" />;
-      case 'Gândul':
-        return <img src="/source_icons/gandul_logo.jpeg" alt="gandul" className="source-icon" />;
-      case 'Bursa':
-        return <img src="/source_icons/bursa_logo.jpg" alt="bursa" className="source-icon" />;
-      case 'Antena 3':
-        return <img src="/source_icons/antena3_logo.jpg" alt="antena3" className="source-icon" />;
-      default:
-        return <span>{source}</span>;
-    }
-  };
 
   function getNumberOfViews(article) {
     if (article.source === 'Digi24' || article.source === 'PROTV') {
@@ -141,7 +112,7 @@ function ArticleDetail() {
             ))}
           </div>
           <div className="first-article-source-image">
-            {getSourceIcon(article.source)}
+            <img src={article.source_image_url} alt={article.source_name} className="source-icon" />
           </div>
           <div>
             <p>{article.emotion}</p>

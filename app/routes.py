@@ -6,7 +6,7 @@ import os
 import bcrypt
 import secrets
 from flask import g
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import jsonify
 from .models import db
 from .queries import query_politicians, query_political_parties, query_cities, query_tags
@@ -64,8 +64,10 @@ def get_articles():
         cur = g.db_cursor
 
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                   s.name AS source_name, s.image_url AS source_image_url
             FROM articles AS a
+            JOIN sources AS s ON a.source = s.id
             ORDER BY a.published_date DESC
             LIMIT %s OFFSET %s
         """, (limit, offset))
@@ -106,7 +108,9 @@ def get_articles():
                 'article_text': article_text,
                 'comments': comments,
                 'emotion': article[8],
-                'source': article[7]
+                'source_name': article[9],
+                'source_image_url': article[10]
+                
             }
             articles_list.append(article_dict)
 
@@ -130,8 +134,10 @@ def get_article(article_id):
         cur = g.db_cursor
 
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                   s.name AS source_name, s.image_url AS source_image_url
             FROM articles AS a
+            JOIN sources AS s ON a.source = s.id
             WHERE a.id = %s
         """, (article_id,))
         article_data = cur.fetchone()
@@ -172,7 +178,8 @@ def get_article(article_id):
             'article_text': article_text,
             'comments': comments,
             'emotion': article_data[8],
-            'source': article_data[7]
+            'source_name': article_data[9],
+            'source_image_url': article_data[10]
         }
 
         return jsonify({"article": article_dict})
@@ -258,7 +265,7 @@ def politician_articles():
 
         for politician in politicians:
             cur.execute("""
-                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
+                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
                 FROM articles AS a
                 JOIN tags AS t ON a.id = t.article_id
                 WHERE t.tag_text IN (
@@ -268,6 +275,7 @@ def politician_articles():
                     WHERE politician_id = %s
                 )
                 ORDER BY a.published_date DESC
+                LIMIT 5
             """, (politician[0],))
             articles = cur.fetchall()
 
@@ -305,7 +313,8 @@ def politician_articles():
                     'image_url': article[6],
                     'article_text': article_text,
                     'comments': comments,
-                    'source': article[7]
+                    'source': article[7],
+                    'emotion': article[8]
                 }
                 articles_list.append(article_dict)
 
@@ -405,64 +414,281 @@ def politician_articles_by_id(politician_id):
         print("Error fetching politician articles:", e)
         return jsonify({"error": "Failed to fetch politician articles"}), 500
 
+@app.route('/api/political_parties_articles', methods=['GET'])
+def political_parties_articles():
+    try:
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT id, abbreviation, image_url
+            FROM political_parties
+        """)
+        political_parties = cur.fetchall()
+
+        political_parties_articles_data = []
+
+        for party in political_parties:
+            cur.execute("""
+                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM tag_political_parties
+                    JOIN tags ON tag_political_parties.tag_id = tags.id
+                    WHERE political_party_id = %s
+                )
+                ORDER BY a.published_date DESC
+                LIMIT 5
+            """, (party[0],))
+            articles = cur.fetchall()
+
+            articles_list = []
+            for article in articles:
+                cur.execute("""
+                    SELECT tag_text
+                    FROM tags
+                    WHERE article_id = %s
+                """, (article[0],))
+                tags = [tag[0] for tag in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT paragraph_text
+                    FROM article_paragraphs
+                    WHERE article_id = %s
+                """, (article[0],))
+                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT comment_text
+                    FROM comments
+                    WHERE article_id = %s
+                """, (article[0],))
+                comments = [comment[0] for comment in cur.fetchall()]
+
+                article_dict = {
+                    'id': article[0],
+                    'title': article[1],
+                    'url': article[2],
+                    'author': article[3],
+                    'published_date': article[4],
+                    'number_of_views': article[5],
+                    'tags': tags,
+                    'image_url': article[6],
+                    'article_text': article_text,
+                    'comments': comments,
+                    'source': article[7],
+                    'emotion': article[8]
+                }
+                articles_list.append(article_dict)
+
+            party_dict = {
+                'party_id': party[0],
+                'abbreviation': party[1],
+                'image_url': party[2],
+                'articles': articles_list
+            }
+
+            political_parties_articles_data.append(party_dict)
+
+        return jsonify(political_parties_articles_data)
+
+    except Exception as e:
+        print("Error fetching political parties articles:", e)
+        return jsonify({"error": "Failed to fetch political parties articles"}), 500
+
+@app.route('/api/city_articles', methods=['GET'])
+def cities_articles():
+    try:
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT id, name, image_url
+            FROM cities
+        """)
+        cities = cur.fetchall()
+
+        cities_articles_data = []
+
+        for city in cities:
+            cur.execute("""
+                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM tag_city
+                    JOIN tags ON tag_city.tag_id = tags.id
+                    WHERE city_id = %s
+                )
+                ORDER BY a.published_date DESC
+                LIMIT 5
+            """, (city[0],))
+            articles = cur.fetchall()
+
+            articles_list = []
+            for article in articles:
+                cur.execute("""
+                    SELECT tag_text
+                    FROM tags
+                    WHERE article_id = %s
+                """, (article[0],))
+                tags = [tag[0] for tag in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT paragraph_text
+                    FROM article_paragraphs
+                    WHERE article_id = %s
+                """, (article[0],))
+                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT comment_text
+                    FROM comments
+                    WHERE article_id = %s
+                """, (article[0],))
+                comments = [comment[0] for comment in cur.fetchall()]
+
+                article_dict = {
+                    'id': article[0],
+                    'title': article[1],
+                    'url': article[2],
+                    'author': article[3],
+                    'published_date': article[4],
+                    'number_of_views': article[5],
+                    'tags': tags,
+                    'image_url': article[6],
+                    'article_text': article_text,
+                    'comments': comments,
+                    'source': article[7],
+                    'emotion': article[8]
+                }
+                articles_list.append(article_dict)
+
+            city_dict = {
+                'city_id': city[0],
+                'name': city[1],
+                'image_url': city[2],
+                'articles': articles_list
+            }
+
+            cities_articles_data.append(city_dict)
+
+        return jsonify(cities_articles_data)
+
+    except Exception as e:
+        print("Error fetching political parties articles:", e)
+        return jsonify({"error": "Failed to fetch political parties articles"}), 500
+
+@app.route('/api/sources_articles', methods=['GET'])
+def sources_articles():
+    try:
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT id, name, image_url
+            FROM sources
+        """)
+        sources = cur.fetchall()
+
+        sources_articles_data = []
+
+        for source in sources:
+            cur.execute("""
+                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+                FROM articles AS a
+                WHERE a.source = %s
+                ORDER BY a.published_date DESC
+                LIMIT 5
+            """, (source[0],))
+            articles = cur.fetchall()
+
+            articles_list = []
+            for article in articles:
+                cur.execute("""
+                    SELECT tag_text
+                    FROM tags
+                    WHERE article_id = %s
+                """, (article[0],))
+                tags = [tag[0] for tag in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT paragraph_text
+                    FROM article_paragraphs
+                    WHERE article_id = %s
+                """, (article[0],))
+                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+                cur.execute("""
+                    SELECT comment_text
+                    FROM comments
+                    WHERE article_id = %s
+                """, (article[0],))
+                comments = [comment[0] for comment in cur.fetchall()]
+
+                article_dict = {
+                    'id': article[0],
+                    'title': article[1],
+                    'url': article[2],
+                    'author': article[3],
+                    'published_date': article[4],
+                    'number_of_views': article[5],
+                    'tags': tags,
+                    'image_url': article[6],
+                    'article_text': article_text,
+                    'comments': comments,
+                    'source': article[7],
+                    'emotion': article[8]
+                }
+                articles_list.append(article_dict)
+
+            source_dict = {
+                'source_id': source[0],
+                'name': source[1],
+                'image_url': source[2],
+                'articles': articles_list
+            }
+
+            sources_articles_data.append(source_dict)
+
+        return jsonify(sources_articles_data)
+
+    except Exception as e:
+        print("Error fetching sources articles:", e)
+        return jsonify({"error": "Failed to fetch sources articles"}), 500
+
 @app.route('/api/explore', methods=['GET'])
 def explore_data():
     try:
         cur = g.db_cursor
 
+        # Determine the start of the week (last Monday)
+        today = datetime.today()
+        last_monday = today - timedelta(days=today.weekday())
+
+        # Prepare the date range for the current week
+        date_range_start = last_monday
+        date_range_end = today
+
+        # Fetch top 3 politicians based on tag appearances this week
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source
-            FROM articles AS a
-            ORDER BY a.published_date DESC
-        """)
-        articles = cur.fetchall()
-
-        articles_list = []
-        for article in articles:
-            cur.execute("""
-                SELECT tag_text
-                FROM tags
-                WHERE article_id = %s
-            """, (article[0],))
-            tags = [tag[0] for tag in cur.fetchall()]
-
-            cur.execute("""
-                SELECT paragraph_text
-                FROM article_paragraphs
-                WHERE article_id = %s
-            """, (article[0],))
-            article_text = [paragraph[0] for paragraph in cur.fetchall()]
-
-            cur.execute("""
-                SELECT comment_text
-                FROM comments
-                WHERE article_id = %s
-            """, (article[0],))
-            comments = [comment[0] for comment in cur.fetchall()]
-
-            article_dict = {
-                'id': article[0],
-                'title': article[1],
-                'url': article[2],
-                'author': article[3],
-                'published_date': article[4],
-                'number_of_views': article[5],
-                'tags': tags,
-                'image_url': article[6],
-                'article_text': article_text,
-                'comments': comments,
-                'source': article[7]
-            }
-            articles_list.append(article_dict)
-
-        cur.execute("""
-            SELECT id, first_name, last_name, city, position, image_url, age
-            FROM politicians
-        """)
-        politicians = cur.fetchall()
+            SELECT p.id, p.first_name, p.last_name, p.city, p.position, p.image_url, p.age, COUNT(t.id) AS tag_count
+            FROM politicians p
+            JOIN tag_politician tp ON p.id = tp.politician_id
+            JOIN tags t ON tp.tag_id = t.id
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(t.timestamps) AS elem
+                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
+            )
+            GROUP BY p.id
+            ORDER BY tag_count DESC
+            LIMIT 3
+        """, (date_range_start, date_range_end))
+        top_politicians = cur.fetchall()
 
         politician_data = []
-        for politician in politicians:
+        for politician in top_politicians:
             cur.execute("""
                 SELECT tag_text
                 FROM tag_politician
@@ -482,14 +708,25 @@ def explore_data():
             }
             politician_data.append(politician_dict)
 
+        # Fetch top 3 cities based on tag appearances this week
         cur.execute("""
-            SELECT id, name, description, image_url, candidates_for_mayor, mayor
-            FROM cities
-        """)
-        cities = cur.fetchall()
+            SELECT c.id, c.name, c.description, c.image_url, c.candidates_for_mayor, c.mayor, COUNT(t.id) AS tag_count
+            FROM cities c
+            JOIN tag_city tc ON c.id = tc.city_id
+            JOIN tags t ON tc.tag_id = t.id
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(t.timestamps) AS elem
+                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
+            )
+            GROUP BY c.id
+            ORDER BY tag_count DESC
+            LIMIT 3
+        """, (date_range_start, date_range_end))
+        top_cities = cur.fetchall()
 
         city_data = []
-        for city in cities:
+        for city in top_cities:
             cur.execute("""
                 SELECT tag_text
                 FROM tag_city
@@ -508,14 +745,25 @@ def explore_data():
             }
             city_data.append(city_dict)
 
+        # Fetch top 3 political parties based on tag appearances this week
         cur.execute("""
-            SELECT id, abbreviation, full_name, description, image_url
-            FROM political_parties
-        """)
-        political_parties = cur.fetchall()
+            SELECT pp.id, pp.abbreviation, pp.full_name, pp.description, pp.image_url, COUNT(t.id) AS tag_count
+            FROM political_parties pp
+            JOIN tag_political_parties tpp ON pp.id = tpp.political_party_id
+            JOIN tags t ON tpp.tag_id = t.id
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements_text(t.timestamps) AS elem
+                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
+            )
+            GROUP BY pp.id
+            ORDER BY tag_count DESC
+            LIMIT 3
+        """, (date_range_start, date_range_end))
+        top_parties = cur.fetchall()
 
         party_data = []
-        for party in political_parties:
+        for party in top_parties:
             cur.execute("""
                 SELECT tag_text
                 FROM tag_political_parties
@@ -533,11 +781,32 @@ def explore_data():
             }
             party_data.append(party_dict)
 
+        # Fetch top 3 sources based on articles published this week
+        cur.execute("""
+            SELECT s.id, s.name, s.image_url, COUNT(a.id) AS article_count
+            FROM sources s
+            JOIN articles a ON s.id = a.source
+            WHERE a.published_date >= %s
+            GROUP BY s.id
+            ORDER BY article_count DESC
+            LIMIT 3
+        """, (date_range_start,))
+        top_sources = cur.fetchall()
+
+        source_data = []
+        for source in top_sources:
+            source_dict = {
+                'id': source[0],
+                'name': source[1],
+                'image_url': source[2]
+            }
+            source_data.append(source_dict)
+
         return jsonify({
-            'articles': articles_list,
             'politicians': politician_data,
             'cities': city_data,
-            'political_parties': party_data
+            'political_parties': party_data,
+            'sources': source_data
         })
 
     except Exception as e:
@@ -577,44 +846,6 @@ def politicians_data():
 
         return jsonify({
             'politicians': politician_data
-        })
-
-    except Exception as e:
-        print("Error fetching explore data:", e)
-        return jsonify({"error": "Failed to fetch explore data"}), 500
-
-@app.route('/api/political-parties', methods=['GET'])
-def political_parties_data():
-    try:
-        cur = g.db_cursor
-
-        cur.execute("""
-            SELECT id, abbreviation, full_name, description, image_url
-            FROM political_parties
-        """)
-        political_parties = cur.fetchall()
-
-        party_data = []
-        for party in political_parties:
-            cur.execute("""
-                SELECT tag_text
-                FROM tag_political_parties
-                JOIN tags ON tag_political_parties.tag_id = tags.id
-                WHERE political_party_id = %s
-            """, (party[0],))
-            tags = [tag[0] for tag in cur.fetchall()]
-            party_dict = {
-                'id': party[0],
-                'abbreviation': party[1],
-                'full_name': party[2],
-                'description': party[3],
-                'image_url': party[4],
-                'tags': tags
-            }
-            party_data.append(party_dict)
-
-        return jsonify({
-            'political_parties': party_data
         })
 
     except Exception as e:
@@ -689,11 +920,13 @@ def elections_data(category):
             return jsonify({"articles": [], "totalPages": 0})
 
         cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                   s.name AS source_name, s.image_url AS source_image_url
             FROM articles AS a
             JOIN tags AS t ON a.id = t.article_id
+            JOIN sources AS s ON a.source = s.id
             WHERE t.tag_text = ANY(%s)
-            GROUP BY a.id
+            GROUP BY a.id, s.id
             ORDER BY a.published_date DESC
             LIMIT %s OFFSET %s
         """, (tags, limit, offset))
@@ -722,7 +955,8 @@ def elections_data(category):
                 'article_text': article_text,
                 'comments': comments,
                 'emotion': article[8],
-                'source': article[7]
+                'source_name': article[9],
+                'source_image_url': article[10]
             }
             articles_list.append(article_dict)
 

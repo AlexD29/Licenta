@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './Elections.css';
 import Footer from '../Footer';
-import { formatDate, getSourceIcon } from '../Articles';
+import { formatDate } from '../Articles';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 
 const Pagination = ({ currentPage, totalPages, category }) => {
@@ -225,7 +225,7 @@ const Elections = () => {
                                     <p className="article-text-minimized">{formatDate(article.published_date)}</p>
                                 </div>
                                 <div className="article-source-image-minimized">
-                                    {getSourceIcon(article.source, "source-icon-minimized")}
+                                    <img src={article.source_image_url} alt={article.source_name} className="source-icon-minimized" />
                                 </div>
                             </div>
                         </Link>

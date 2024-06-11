@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import "./Cities.css";
+import "./Sources.css";
 import { formatDate } from "../Articles";
 
-const Cities = () => {
+const Sources = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -17,7 +17,7 @@ const Cities = () => {
     const fetchData = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8000/api/city_articles"
+          "http://localhost:8000/api/sources_articles"
         );
         setData(response.data);
         console.log(response.data);
@@ -47,17 +47,17 @@ const Cities = () => {
     <div className="entity-container">
       <div className="first-section"></div>
       <div className="entity-section">
-        {data.map((city) => (
-          <div key={city.politician_id} className="entity-card">
-            <div className="entity-details city-details">
+        {data.map((source) => (
+          <div key={source.politician_id} className="entity-card">
+            <div className="entity-details sources-details">
             <div className="entity-details-first-part">
                 <img
-                    src={city.image_url}
-                    alt="city"
+                    src={source.image_url}
+                    alt="source"
                     className="entity-image"
                 />
                 <h3 className="entity-name">
-                    {city.first_name} {city.last_name}
+                    {source.first_name} {source.last_name}
                 </h3>
                 <div className="button-container">
                     <button 
@@ -81,7 +81,7 @@ const Cities = () => {
               <div className="entity-details-second-part"></div>
             </div>
             <div className="articles-container">
-              {city.articles.map((article, index) => (
+              {source.articles.map((article, index) => (
                 <Link
                   key={article.id}
                   to={`/article/${article.id}`}
@@ -89,7 +89,7 @@ const Cities = () => {
                 >
                   <div
                     className={`article-card-entity ${article.emotion.toLowerCase()} ${
-                      index === city.articles.length - 1
+                      index === source.articles.length - 1
                         ? "last-article"
                         : ""
                     }`}
@@ -120,4 +120,4 @@ const Cities = () => {
   );
 };
 
-export default Cities;
+export default Sources;

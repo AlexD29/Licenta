@@ -1,6 +1,5 @@
 .explore-container {
     display: flex;
-    flex-wrap: wrap;
 }
 
 .card {
@@ -8,7 +7,7 @@
     flex-direction: column;
     align-items: center;
     flex-basis: calc(23%);
-    margin: 20px 10px;
+    margin: 15px 10px;
     background-color: #C0C0C0;
     color: black;
     border-radius: 10px;
@@ -17,29 +16,26 @@
 }
 
 .card:first-child{
-    margin-left: 20px;
+    margin-left: 15px;
 }
 
 .card:last-child{
-    margin-right: 20px;
+    margin-right: 15px;
 }
-
 
 .card:hover {
     transform: translateY(-5px);
 }
-
-
 
 .main-image{
     text-align: center;
 }
 
 .card-image {
-    width: 90%;
-    height: 30vh;
+    width: 85%;
+    height: 20vh;
     border-radius: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .elections-list {
@@ -59,9 +55,9 @@
 }
 
 .list-image {
-    width: 35%;
-    height: 70px;
-    margin-right: 10px;
+    width: 30%;
+    height: 60px;
+    margin-right: 15px;
 }
 
 .card a{
@@ -84,13 +80,13 @@
 
 .more-button{
     text-align: center;
-    margin-top: 10px;
+    margin-top: 5px;
 }
 
 .title-div{
     background-color: #04248c;
     color: white;
-    padding: 10px 0 5px 0;
+    padding: 1px 0 1px 0;
     border-radius: 10px 10px 0 0;
     margin-bottom: 10px;
     width: 100%;
@@ -107,4 +103,10 @@
 
 .top-3-this-week{
     text-align: center;
+}
+
+.explore-card-list{
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0 5px;
 }

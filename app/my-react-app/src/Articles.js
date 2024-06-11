@@ -3,37 +3,7 @@ import axios from 'axios';
 import { Link, useParams } from 'react-router-dom';
 import './Articles.css';
 import Footer from './Footer';
-import TodayPiechart from './charts/TodayPiechart';
-
-
-const getSourceIcon = (source, className) => {
-  switch (source) {
-    case 'Ziare.com':
-      return <img src="/source_icons/ziaredotcom_logo.png" alt="ziaredotcom" className={className} />;
-    case 'PROTV':
-      return <img src="/source_icons/protv_logo.png" alt="protv" className={className} />;
-    case 'Digi24':
-      return <img src="/source_icons/digi24_logo.png" alt="digi24" className={className} />;
-    case 'Mediafax':
-      return <img src="/source_icons/mediafax_logo.jpg" alt="mediafax" className={className} />;
-    case 'Adevarul':
-      return <img src="/source_icons/adevarul_logo.jpeg" alt="adevarul" className={className} />;
-    case 'Observator':
-      return <img src="/source_icons/observator_logo.png" alt="observator" className={className} />;
-    case 'HotNews':
-      return <img src="/source_icons/hotnews_logo.png" alt="hotnews" className={className} />;
-    case 'Stiri pe surse':
-      return <img src="/source_icons/stiripesurse_logo.png" alt="stiripesurse" className={className} />;
-    case 'Gândul':
-      return <img src="/source_icons/gandul_logo.jpeg" alt="gandul" className={className} />;
-    case 'Bursa':
-      return <img src="/source_icons/bursa_logo.jpg" alt="bursa" className={className} />;
-    case 'Antena 3':
-      return <img src="/source_icons/antena3_logo.jpg" alt="antena3" className={className} />;
-    default:
-      return <span>{source}</span>;
-  }
-};  
+import TodayPiechart from './charts/TodayPiechart'; 
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -144,7 +114,7 @@ function renderPagination(currentPage, totalPages) {
   return pages;
 }
 
-export { formatDate, getSourceIcon, renderPagination };
+export { formatDate, renderPagination };
 
 function Articles() {
   const [articles, setArticles] = useState([]);
@@ -160,6 +130,7 @@ function Articles() {
       try {
         const response = await axios.get(`http://localhost:8000/api/articles?page=${pageNumber}&limit=${20}`);
         setArticles(response.data.articles);
+        console.log(articles);
         setTotalPages(response.data.totalPages);
         setCurrentPage(parseInt(page, 10) || 1);
       } catch (error) {
@@ -206,7 +177,7 @@ function Articles() {
                           <h3 className="article-text">{firstArticle.title}</h3>
                           <p className="article-text">{formatDate(firstArticle.published_date)}</p>
                           <div className="first-article-source-image">
-                            {getSourceIcon(firstArticle.source, "first-article-source-icon")}
+                            <img src={firstArticle.source_image_url} alt={firstArticle.source_name} className="source-icon-first-article" />
                           </div>
                         </div>
                       </div>
@@ -229,7 +200,7 @@ function Articles() {
                   <p className="article-text">{formatDate(article.published_date)}</p>
                 </div>
                 <div className="article-source-image">
-                  {getSourceIcon(article.source, "source-icon")}
+                  <img src={article.source_image_url} alt={article.source_name} className="source-icon" />
                 </div>
               </div>
             </Link>

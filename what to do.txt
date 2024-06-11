@@ -7,10 +7,10 @@ Issues:
     - De reparat chestia complicata cu Navbar-ul care nu se updateaza imediat
     - De vazut de ce orele sunt extrase aiurea
     - de rezolvat paginarea - not sure if it's worth it
-
+    - de facut paginarea la Elections
+    - published_date.isformat la scrape_ziaredotcom
 
 TODAY:
-    - de facut search bar-ul
     - de facut Article Details
     - de facut Explore-ul
     - de updatat search-ul

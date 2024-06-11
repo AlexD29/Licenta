@@ -28,7 +28,7 @@
 }
 
 .article-card:hover {
-  transform: scale(1.05); /* Added scale transformation on hover for a slight zoom effect */
+  transform: scale(1.05);
 }
 
 .article-card.positive:hover {
@@ -79,6 +79,11 @@
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
+}
+
+.source-icon-first-article{
+  width: 6rem;
+  height: auto;
 }
 
 .first-article-image{

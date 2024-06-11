@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link} from 'react-router-dom';
 import './Explore.css';
-import Footer from 'D:/Documents/Facultate/Licenta/app/my-react-app/src/Footer';
+import Footer from '../Footer';
 
 const Explore = () => {
     const [data, setData] = useState(null);
@@ -89,7 +89,7 @@ const Explore = () => {
                         <div className="top-3-this-week-div">
                             <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
-                        <ul>
+                        <ul className='explore-card-list'>
                             {data.politicians.slice(0, 3).map(politician => (
                                 <li key={politician.id} className="elections-list-item">
                                     <img src={politician.image_url} alt="Image" className="list-image" />
@@ -115,7 +115,7 @@ const Explore = () => {
                         <div className="top-3-this-week-div">
                             <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
-                        <ul>
+                        <ul className='explore-card-list'>
                             {data.political_parties.slice(0,3).map(party => (
                                 <li key={party.id} className="elections-list-item">
                                     <img src={party.image_url} alt="Image" className="list-image" />
@@ -141,11 +141,35 @@ const Explore = () => {
                         <div className="top-3-this-week-div">
                             <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
                         </div>
-                        <ul>
+                        <ul className='explore-card-list'>
                             {data.cities.slice(0,3).map(city => (
                                 <li key={city.id} className="elections-list-item">
                                     <img src={city.image_url} alt="Image" className="list-image"/>
                                     <div>{city.name}</div>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="more-button">
+                            <p>+ mai multe</p>
+                        </div>
+                    </Link>
+                </div>
+                <div className="card">
+                    <Link to="/sources" className='link-card'>
+                        <div className='title-div'>
+                            <h2 className="card-title">Surse</h2>
+                        </div>
+                        <div className="main-image">
+                            <img src="./explore/cities-picture.jpg" alt="Election 2024" className="card-image" />
+                        </div>
+                        <div className="top-3-this-week-div">
+                            <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>
+                        </div>
+                        <ul className='explore-card-list'>
+                            {data.sources.map(source => (
+                                <li key={source.id} className="elections-list-item">
+                                    <img src={source.image_url} alt="Image" className="list-image"/>
+                                    <div>{source.name}</div>
                                 </li>
                             ))}
                         </ul>
