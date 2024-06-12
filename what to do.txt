@@ -12,5 +12,5 @@ Issues:
 
 TODAY:
     - de facut Article Details
-    - de facut Explore-ul
     - de updatat search-ul
+    - de scrapuit https://www.news.ro/politic-intern/

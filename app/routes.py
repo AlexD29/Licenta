@@ -5,37 +5,48 @@ from flask import request
 import os
 import bcrypt
 import secrets
+import random
 from flask import g
 from datetime import datetime, timedelta
 from flask import jsonify
 from .models import db
 from .queries import query_politicians, query_political_parties, query_cities, query_tags
 
-
 app = Flask(__name__)
 CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@localhost/Licenta'
 db.init_app(app)
 
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            dbname="Licenta",
+            user="postgres",
+            password="password",
+            host="localhost"
+        )
+        return conn
+    except Exception as e:
+        print("Error connecting to the database:", e)
+        return None
+
 @app.before_request
 def before_request():
     g.db_conn = get_db_connection()
-    g.db_cursor = g.db_conn.cursor()
+    if g.db_conn is not None:
+        g.db_cursor = g.db_conn.cursor()
+    else:
+        g.db_cursor = None
 
 @app.after_request
 def after_request(response):
-    g.db_cursor.close()
-    g.db_conn.close()
+    db_cursor = getattr(g, 'db_cursor', None)
+    db_conn = getattr(g, 'db_conn', None)
+    if db_cursor is not None:
+        db_cursor.close()
+    if db_conn is not None:
+        db_conn.close()
     return response
-
-def get_db_connection():
-    conn = psycopg2.connect(
-        dbname="Licenta",
-        user="postgres",
-        password="password",
-        host="localhost"
-    )
-    return conn
 
 @app.route('/')
 def index():
@@ -319,7 +330,7 @@ def politician_articles():
                 articles_list.append(article_dict)
 
             politician_dict = {
-                'politician_id': politician[0],
+                'id': politician[0],
                 'first_name': politician[1],
                 'last_name': politician[2],
                 'image_url': politician[3],
@@ -483,7 +494,7 @@ def political_parties_articles():
                 articles_list.append(article_dict)
 
             party_dict = {
-                'party_id': party[0],
+                'id': party[0],
                 'abbreviation': party[1],
                 'image_url': party[2],
                 'articles': articles_list
@@ -497,7 +508,7 @@ def political_parties_articles():
         print("Error fetching political parties articles:", e)
         return jsonify({"error": "Failed to fetch political parties articles"}), 500
 
-@app.route('/api/city_articles', methods=['GET'])
+@app.route('/api/cities_articles', methods=['GET'])
 def cities_articles():
     try:
         cur = g.db_cursor
@@ -566,7 +577,7 @@ def cities_articles():
                 articles_list.append(article_dict)
 
             city_dict = {
-                'city_id': city[0],
+                'id': city[0],
                 'name': city[1],
                 'image_url': city[2],
                 'articles': articles_list
@@ -643,7 +654,7 @@ def sources_articles():
                 articles_list.append(article_dict)
 
             source_dict = {
-                'source_id': source[0],
+                'id': source[0],
                 'name': source[1],
                 'image_url': source[2],
                 'articles': articles_list
@@ -980,6 +991,281 @@ def elections_data(category):
         print("Error fetching articles by category:", e)
         return jsonify({"error": "Failed to fetch articles by category"}), 500
 
+@app.route('/api/favorites', methods=['POST'])
+def manage_favorite():
+    if g.db_cursor is None or g.db_conn is None:
+        print("Database connection is not available")
+        return jsonify({"error": "Database connection is not available"}), 500
+
+    try:
+        data = request.get_json()
+        user_id = data['user_id']
+        entity_id = data['entity_id']
+        entity_type = data['entity_type']
+        action = data['action']
+
+        cur = g.db_cursor
+
+        if action == 'add':
+            cur.execute("""
+                INSERT INTO favorites (user_id, entity_id, entity_type)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id, entity_id, entity_type) DO NOTHING
+            """, (user_id, entity_id, entity_type))
+        elif action == 'remove':
+            cur.execute("""
+                DELETE FROM favorites
+                WHERE user_id = %s AND entity_id = %s AND entity_type = %s
+            """, (user_id, entity_id, entity_type))
+
+        g.db_conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Error managing favorites:", e)
+        return jsonify({"error": "Failed to manage favorites"}), 500
+
+@app.route('/api/hidden_entities', methods=['POST'])
+def manage_hidden_entities():
+    if g.db_cursor is None or g.db_conn is None:
+        print("Database connection is not available")
+        return jsonify({"error": "Database connection is not available"}), 500
+
+    try:
+        data = request.get_json()
+        user_id = data['user_id']
+        entity_id = data['entity_id']
+        entity_type = data['entity_type']
+        action = data['action']  # 'hide' or 'unhide'
+
+        cur = g.db_cursor
+
+        if action == 'hide':
+            cur.execute("""
+                INSERT INTO hidden_entities (user_id, entity_id, entity_type)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (user_id, entity_id, entity_type) DO NOTHING
+            """, (user_id, entity_id, entity_type))
+        elif action == 'unhide':
+            cur.execute("""
+                DELETE FROM hidden_entities
+                WHERE user_id = %s AND entity_id = %s AND entity_type = %s
+            """, (user_id, entity_id, entity_type))
+
+        g.db_conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        print("Error managing hidden entities:", e)
+        return jsonify({"error": "Failed to manage hidden entities"}), 500
+
+@app.route('/api/favorites', methods=['GET'])
+def get_favorites():
+    try:
+        user_id = request.args.get('user_id')
+
+        cur = g.db_cursor
+        cur.execute("""
+            SELECT entity_id, entity_type FROM favorites WHERE user_id = %s
+        """, (user_id,))
+        
+        favorites = cur.fetchall()
+        return jsonify(favorites)
+    except Exception as e:
+        print("Error fetching favorites:", e)
+        return jsonify({"error": "Failed to fetch favorites"}), 500
+
+@app.route('/api/hidden_entities', methods=['GET'])
+def get_hidden_entities():
+    try:
+        user_id = request.args.get('user_id')
+
+        cur = g.db_cursor
+        cur.execute("""
+            SELECT entity_id, entity_type FROM hidden_entities WHERE user_id = %s
+        """, (user_id,))
+        
+        hidden_entities = cur.fetchall()
+        return jsonify(hidden_entities)
+    except Exception as e:
+        print("Error fetching hidden entities:", e)
+        return jsonify({"error": "Failed to fetch hidden entities"}), 500
+
+@app.route('/api/my_interests', methods=['GET'])
+def get_my_interests():
+    try:
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+
+        if g.db_cursor is None or g.db_conn is None:
+            return jsonify({"error": "Database connection is not established"}), 500
+
+        cur = g.db_cursor
+
+        # Fetch favorite entities
+        cur.execute("""
+            SELECT entity_id, entity_type
+            FROM favorites
+            WHERE user_id = %s
+        """, (user_id,))
+        favorite_entities = cur.fetchall()
+
+        favorite_data = []
+        entity_tags = {}
+
+        for entity_id, entity_type in favorite_entities:
+            if entity_type == 'politician':
+                cur.execute("""
+                    SELECT p.id, p.first_name, p.last_name, p.image_url, t.tag_text
+                    FROM politicians p
+                    LEFT JOIN tag_politician tp ON p.id = tp.politician_id
+                    LEFT JOIN tags t ON tp.tag_id = t.id
+                    WHERE p.id = %s
+                """, (entity_id,))
+                details = cur.fetchall()
+                if details:
+                    first_entry = details[0]
+                    name = f"{first_entry[1]} {first_entry[2]}"
+                    image_url = first_entry[3]
+                    tags = [detail[4] for detail in details]
+                    favorite_data.append({
+                        'id': entity_id,
+                        'type': entity_type,
+                        'name': name,
+                        'image_url': image_url
+                    })
+                    entity_tags[entity_id] = tags
+            elif entity_type == 'city':
+                cur.execute("""
+                    SELECT c.id, c.name, c.image_url, t.tag_text
+                    FROM cities c
+                    LEFT JOIN tag_city tc ON c.id = tc.city_id
+                    LEFT JOIN tags t ON tc.tag_id = t.id
+                    WHERE c.id = %s
+                """, (entity_id,))
+                details = cur.fetchall()
+                if details:
+                    first_entry = details[0]
+                    name = first_entry[1]
+                    image_url = first_entry[2]
+                    tags = [detail[3] for detail in details]
+                    favorite_data.append({
+                        'id': entity_id,
+                        'type': entity_type,
+                        'name': name,
+                        'image_url': image_url
+                    })
+                    entity_tags[entity_id] = tags
+            elif entity_type == 'political_party':
+                cur.execute("""
+                    SELECT pp.id, pp.abbreviation, pp.image_url, t.tag_text
+                    FROM political_parties pp
+                    LEFT JOIN tag_political_parties tpp ON pp.id = tpp.political_party_id
+                    LEFT JOIN tags t ON tpp.tag_id = t.id
+                    WHERE pp.id = %s
+                """, (entity_id,))
+                details = cur.fetchall()
+                if details:
+                    first_entry = details[0]
+                    name = first_entry[1]
+                    image_url = first_entry[2]
+                    tags = [detail[3] for detail in details]
+                    favorite_data.append({
+                        'id': entity_id,
+                        'type': entity_type,
+                        'name': name,
+                        'image_url': image_url
+                    })
+                    entity_tags[entity_id] = tags
+
+        # Fetch articles related to favorite entities
+        all_tags = [tag for tags in entity_tags.values() for tag in tags]
+        if all_tags:
+            cur.execute("""
+                SELECT DISTINCT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                                s.name AS source_name, s.image_url AS source_image_url
+                FROM articles a
+                JOIN tags t ON a.id = t.article_id
+                JOIN sources AS s ON a.source = s.id
+                WHERE t.tag_text = ANY(%s)
+                GROUP BY a.id, s.id
+                ORDER BY a.published_date DESC
+            """, (all_tags,))
+            related_articles = cur.fetchall()
+        else:
+            related_articles = []
+
+        articles_data = []
+        for article in related_articles:
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': tags,
+                'image_url': article[6],
+                'emotion': article[8],
+                'source_name': article[9],
+                'source_image_url': article[10]
+            }
+            articles_data.append(article_dict)
+
+        return jsonify({
+            'favorite_entities': favorite_data,
+            'related_articles': articles_data
+        })
+
+    except Exception as e:
+        print("Error fetching my interests:", e)
+        return jsonify({"error": "Failed to fetch my interests"}), 500
+
+@app.route('/api/random-suggestions', methods=['GET'])
+def random_suggestions():
+    if g.db_cursor is None or g.db_conn is None:
+        return jsonify({"error": "Database connection is not available"}), 500
+
+    try:
+        cur = g.db_cursor
+
+        # Fetch random cities (only need one)
+        cur.execute("SELECT id, name, image_url, 'city' as type FROM cities ORDER BY RANDOM() LIMIT 1")
+        city = cur.fetchone()
+
+        # Fetch random politicians
+        cur.execute("SELECT id, first_name || ' ' || last_name as name, image_url, 'politician' as type FROM politicians ORDER BY RANDOM() LIMIT 5")
+        politicians = cur.fetchall()
+
+        # Fetch random political parties
+        cur.execute("SELECT id, abbreviation as name, image_url, 'political_party' as type FROM political_parties ORDER BY RANDOM() LIMIT 5")
+        political_parties = cur.fetchall()
+
+        # Combine politicians and political parties
+        combined = politicians + political_parties
+
+        # Select 4 random politicians or political parties
+        random_combined = random.sample(combined, 4)
+
+        # Ensure the city is included in the suggestions
+        random_suggestions = [city] + random_combined
+
+        # Convert to dictionary format
+        suggestions_dict = [
+            {"id": entity[0], "name": entity[1], "image_url": entity[2], "type": entity[3]}
+            for entity in random_suggestions
+        ]
+
+        return jsonify(suggestions_dict)
+    except Exception as e:
+        print("Error fetching random suggestions:", e)
+        return jsonify({"error": "Failed to fetch random suggestions"}), 500
+
 def get_articles_by_politician_id(politician_id):
     try:
         cur = g.db_cursor
@@ -1301,4 +1587,3 @@ def protected_route():
     except Exception as e:
         print("Error accessing protected route:", e)
         return jsonify({"error": "Failed to access protected route"}), 500
-

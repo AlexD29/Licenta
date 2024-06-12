@@ -1,11 +1,19 @@
-.entity-container {
+.entities-container {
     padding: 20px;
+    display: flex;
+    flex-direction: row;
 }
 
-.entity-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    grid-gap: 20px;
+.first-section {
+    width: 30%;
+}
+
+.entities-section {
+    width: 40%;
+}
+
+.statistics-section {
+    width: 30%;
 }
 
 .entity-card {
@@ -36,18 +44,6 @@
     font-size: 16px;
 }
 
-.first-section {
-    width: 30%;
-}
-
-.statistics-section {
-    width: 30%;
-}
-
-.entity-section {
-    width: 40%;
-}
-
 .entity-container {
     display: flex;
     flex-direction: row;
@@ -72,6 +68,20 @@
     border-radius: 8px 8px 0 0;
 }
 
+.political_party-details {
+    display: flex;
+    flex-direction: row;
+    background-color: #850424;
+    border-radius: 8px 8px 0 0;
+}
+
+.city-details{
+    background-color: rgb(195, 83, 14);
+}
+
+.source-details{
+    background-color: rgb(0, 175, 198);
+}
 /*Buttons*/
 
 .button-container {

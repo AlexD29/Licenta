@@ -13,8 +13,11 @@ import PoliticalParties from './pages/PoliticalParties';
 import Cities from './pages/Cities';
 import Sources from './pages/Sources';
 import Elections from './pages/Elections';
+import MyInterests from './pages/MyInterests';
 
 function App() {
+  const userId = 2;
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -32,6 +35,7 @@ function App() {
           <Route path="/sources" element={<Sources />} />
           <Route path="/alegeri/:category" element={<Elections />} />
           <Route path="/alegeri/:category/page/:page" element={<Elections />} />
+          <Route path="/my-interests" element={<MyInterests userId={userId} />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

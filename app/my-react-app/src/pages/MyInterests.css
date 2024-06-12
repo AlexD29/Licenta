@@ -1,0 +1,242 @@
+.interests-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    text-align: center;
+}
+
+.interests-content {
+    display: flex;
+    flex-direction: row;
+}
+
+.first-part {
+    width: 30%;
+    text-align: left;
+    height: 100vh;
+}
+
+.no-favorites {
+    width: 100%;
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .suggestions-text-favorite{
+    font-size: 20px;
+  }
+  
+  .suggestions-list-favorites {
+    list-style-type: none;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .suggestions-entity-favorites {
+    margin: 10px;
+    padding: 10px;
+    width: 200px;
+    transition: background 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .suggestions-entity-favorites:hover {
+    background: #f0f0f0;
+    transform: scale(1.05);
+  }
+  
+  .suggestions-list-image-favorite {
+    width: 100%;
+    height: 10rem;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    object-fit:fill;
+  }
+  
+  .suggestions-entity-favorites span {
+    display: block;
+    margin-bottom: 10px;
+  }
+  
+  .follow-button-suggestions-favorite {
+    background-color: #0ebb19;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    width:fit-content;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    font-size:medium;
+  }
+
+  .follow-button-suggestions-favorite.add {
+    background-color: #0ebb19;
+}
+
+.follow-button-suggestions-favorite.remove {
+    background-color: red;
+}
+
+.follow-button-suggestions-favorite:hover {
+    background-color: #0b9314;
+}
+
+.follow-button-suggestions-favorite.remove:hover {
+    background-color: darkred;
+}
+
+.first-part h2 {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.interests-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+
+}
+
+.favorite-category {
+    margin-bottom: 20px;
+}
+
+.favorite-category h3 {
+    font-size: 1.25rem;
+    margin-bottom: 10px;
+}
+
+.favorite-entity {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.favorite-entity:hover {
+    background-color: #f0f0f0;
+}
+
+.remove-button {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: none;
+    transition: transform 0.2s ease-in-out;
+}
+
+.remove-button:active{
+    transform: scale(1.1);
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+  }
+  
+  /* Apply shaking effect on active state */
+  .remove-button:active {
+    animation: shake 0.5s;
+  }
+
+.favorite-entity:hover .remove-button {
+    display: block;
+}
+
+.remove-svg {
+    width: 1.5rem;
+}
+
+.alegeri-list-image{
+    width: 20%;
+}
+
+.second-part {
+    width: 40%;
+}
+
+.article-link-minimized {
+    text-decoration: none;
+    color: inherit;
+}
+
+.article-card-minimized {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    margin-bottom: 20px;
+    height: 10rem;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.article-card-minimized:hover {
+    transform: scale(1.03);
+}
+
+.article-card-minimized.positive:hover {
+    background-color: #4caf50;
+}
+
+.article-card-minimized.negative:hover {
+    background-color: #f44336;
+}
+
+.article-card-minimized.neutral:hover {
+    background-color: #9e9e9e;
+}
+
+.article-image-div-minimized {
+    width: 30%;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.article-image-minimized {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.article-details-div-minimized {
+    padding: 10px;
+    width: 60%;
+    margin-top: 10px;
+}
+
+.article-text-minimized {
+    margin: 0;
+    font-size: 15px;
+    text-align: left;
+}
+
+.article-text-minimized:first-child {
+    font-weight: bold;
+}
+
+.article-text-minimized:last-child {
+    margin-top: 5px;
+}
+
+.article-source-image-minimized {
+    padding: 10px 10px 0 10px;
+    align-self: flex-end;
+    width: 10%;
+}
+
+.source-icon-minimized {
+    width: 4rem;
+    height: auto;
+}
+

@@ -54,7 +54,7 @@ function Navbar() {
       <div className="navbar-tabs">
         <ul>
           <li><Link to="/explore">Explorează</Link></li>
-          <li><a href="#">Interesele tale</a></li>
+          <li><a href="/my-interests">Interesele tale</a></li>
           <li><a href="#">Despre</a></li>
           {isLoggedIn && (
             <li><Link to="/account">Cont</Link></li>

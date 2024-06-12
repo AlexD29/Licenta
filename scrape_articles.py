@@ -1380,11 +1380,15 @@ def scrape_article_stiripesurse(article_url):
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        unfiltered_title = soup.find('h1', class_='article-single-title').get_text(strip=True)
-        words_to_filter = ["VIDEO", "Video"]
-        title_words = unfiltered_title.split()
-        filtered_words = [word for word in title_words if word not in words_to_filter]
-        title = ' '.join(filtered_words)
+        unfiltered_title_element = soup.find('h1', class_='article-single-title')
+        if unfiltered_title_element:
+            unfiltered_title = unfiltered_title_element.get_text(strip=True)
+            words_to_filter = ["VIDEO", "Video"]
+            title_words = unfiltered_title.split()
+            filtered_words = [word for word in title_words if word not in words_to_filter]
+            title = ' '.join(filtered_words)
+        else:
+            title = "No title"
 
         info_div = soup.find('div', class_='article-single-meta')
         if info_div:
