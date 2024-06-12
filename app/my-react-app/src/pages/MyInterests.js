@@ -227,27 +227,26 @@ const MyInterests = ({ userId }) => {
                 </p>
                 <ul className="suggestions-list-favorites">
                   {suggestions.map((suggestion) => {
-                    const isFavorite = favorites[suggestion.type]?.some(
-                      (fav) => fav.id === suggestion.id
-                    );
                     return (
                       <li
                         key={`${suggestion.id}-${suggestion.type}`}
                         className="suggestions-entity-favorites"
                       >
-                        <img
-                          src={suggestion.image_url}
-                          className="suggestions-list-image-favorite"
-                          alt={suggestion.name}
-                        />
-                        <span>{suggestion.name}</span>
+                        <Link to={`/${suggestion.type}/${suggestion.id}`} className="suggestion-link-favorites">
+                          <img
+                            src={suggestion.image_url}
+                            className="suggestions-list-image-favorite"
+                            alt={suggestion.name}
+                          />
+                          <span>{suggestion.name}</span>
+                        </Link>
                         <button
-                        className={`follow-button-suggestions-favorite ${
+                          className={`follow-button-suggestions-favorite ${
                             suggestion.isFavorite ? "remove" : "add"
-                        }`}
-                        onClick={() => handleAddFavorite(suggestion)}
+                          }`}
+                          onClick={() => handleAddFavorite(suggestion)}
                         >
-                        {suggestion.isFavorite
+                          {suggestion.isFavorite
                             ? "Elimina de la favorite"
                             : "Adaugă la favorite"}
                         </button>

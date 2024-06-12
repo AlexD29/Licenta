@@ -160,7 +160,7 @@ const Explore = () => {
                             <h2 className="card-title">Surse</h2>
                         </div>
                         <div className="main-image">
-                            <img src="./explore/cities-picture.jpg" alt="Election 2024" className="card-image" />
+                            <img src="./explore/sources-picture.jpg" alt="Election 2024" className="card-image" />
                         </div>
                         <div className="top-3-this-week-div">
                             <h3 className='top-3-this-week'>Top 3 Săptămâna asta</h3>

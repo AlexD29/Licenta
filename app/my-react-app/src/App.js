@@ -14,6 +14,8 @@ import Cities from './pages/Cities';
 import Sources from './pages/Sources';
 import Elections from './pages/Elections';
 import MyInterests from './pages/MyInterests';
+import About from './pages/About';
+import PoliticianPage from './entities_pages/PoliticianPage';
 
 function App() {
   const userId = 2;
@@ -36,6 +38,11 @@ function App() {
           <Route path="/alegeri/:category" element={<Elections />} />
           <Route path="/alegeri/:category/page/:page" element={<Elections />} />
           <Route path="/my-interests" element={<MyInterests userId={userId} />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/politician/:id" element={<PoliticianPage />} />
+          {/* <Route path="/political_party/:id" element={<PoliticalPartyPage />} />
+          <Route path="/city/:id" element={<CityPage />} />
+          <Route path="/source/:id" element={<SourcePage />} /> */}
         </Routes>
       </AuthProvider>
     </BrowserRouter>

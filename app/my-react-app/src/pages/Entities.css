@@ -64,19 +64,19 @@
 .entity-details {
     display: flex;
     flex-direction: row;
-    background-color: #152ab8;
+    background-color: #002B7F;
     border-radius: 8px 8px 0 0;
 }
 
 .political_party-details {
     display: flex;
     flex-direction: row;
-    background-color: #850424;
+    background-color: #CE1126;
     border-radius: 8px 8px 0 0;
 }
 
 .city-details{
-    background-color: rgb(195, 83, 14);
+    background-color: #FCD116;
 }
 
 .source-details{

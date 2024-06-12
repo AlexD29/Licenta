@@ -110,7 +110,7 @@ const Entities = ({ userId, entityType, apiUrl }) => {
                     className="entity-image"
                   />
                   <h3 className="entity-name">
-                    {entity.name || `${entity.first_name} ${entity.last_name}`}
+                    {entity.name || entity.abbreviation || `${entity.first_name} ${entity.last_name}`}
                   </h3>
                   <div className="button-container">
                     <button 

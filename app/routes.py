@@ -7,7 +7,7 @@ import bcrypt
 import secrets
 import random
 from flask import g
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from flask import jsonify
 from .models import db
 from .queries import query_politicians, query_political_parties, query_cities, query_tags
@@ -683,7 +683,7 @@ def explore_data():
 
         # Fetch top 3 politicians based on tag appearances this week
         cur.execute("""
-            SELECT p.id, p.first_name, p.last_name, p.city, p.position, p.image_url, p.age, COUNT(t.id) AS tag_count
+            SELECT p.id, p.first_name, p.last_name, p.city, p.position, p.image_url, p.date_of_birth, COUNT(t.id) AS tag_count
             FROM politicians p
             JOIN tag_politician tp ON p.id = tp.politician_id
             JOIN tags t ON tp.tag_id = t.id
@@ -714,7 +714,7 @@ def explore_data():
                 'city': politician[3],
                 'position': politician[4],
                 'image_url': politician[5],
-                'age': politician[6],
+                'date_of_birth': politician[6],
                 'tags': tags
             }
             politician_data.append(politician_dict)
@@ -829,7 +829,7 @@ def politicians_data():
     try:
         cur = g.db_cursor
         cur.execute("""
-            SELECT id, first_name, last_name, city, position, image_url, age
+            SELECT id, first_name, last_name, city, position, image_url, date_of_birth
             FROM politicians
         """)
         politicians = cur.fetchall()
@@ -850,7 +850,7 @@ def politicians_data():
                 'city': politician[3],
                 'position': politician[4],
                 'image_url': politician[5],
-                'age': politician[6],
+                'date_of_birth': politician[6],
                 'tags': tags
             }
             politician_data.append(politician_dict)
@@ -1587,3 +1587,152 @@ def protected_route():
     except Exception as e:
         print("Error accessing protected route:", e)
         return jsonify({"error": "Failed to access protected route"}), 500
+
+
+@app.route('/api/politician/<int:id>', methods=['GET'])
+def get_politician(id):
+    try:
+        cur = g.db_cursor
+        # Specify the fields you want to return, including political party details
+        fields = """
+            p.id, p.first_name, p.last_name, p.city, p.image_url, p.position, p.description, 
+            pp.id as political_party_id, pp.abbreviation as political_party_abbreviation, pp.image_url as political_party_image_url,
+            p.date_of_birth
+        """
+        cur.execute(f"""
+            SELECT {fields}
+            FROM politicians p
+            LEFT JOIN political_parties pp ON p.political_party = pp.id
+            WHERE p.id = %s
+        """, (id,))
+        politician = cur.fetchone()
+        
+        if politician:
+            # Convert the tuple to a dictionary
+            politician_dict = dict(zip([desc[0] for desc in cur.description], politician))
+            
+            date_of_birth = politician_dict['date_of_birth']
+            today = date.today()
+            age = today.year - date_of_birth.year - ((today.month, today.day) < (date_of_birth.month, date_of_birth.day))
+            politician_dict['age'] = age
+
+            # Fetch tags associated with the politician
+            cur.execute("SELECT tag_text FROM tag_politician JOIN tags ON tag_politician.tag_id = tags.id WHERE politician_id = %s", (id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+            politician_dict['tags'] = tags
+
+            # Fetch articles associated with the politician
+            if tags:
+                cur.execute("""
+                    SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                        s.name AS source_name, s.image_url AS source_image_url
+                    FROM articles AS a
+                    JOIN sources AS s ON a.source = s.id
+                    JOIN tags AS t ON a.id = t.article_id
+                    WHERE t.tag_text IN %s
+                    GROUP BY a.id, s.id
+                    ORDER BY a.published_date DESC
+                    LIMIT 5
+                """, (tuple(tags),))
+                articles = cur.fetchall()
+
+                articles_list = []
+                for article in articles:
+                    cur.execute("""
+                        SELECT tag_text
+                        FROM tags
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    article_tags = [tag[0] for tag in cur.fetchall()]
+
+                    cur.execute("""
+                        SELECT paragraph_text
+                        FROM article_paragraphs
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+                    cur.execute("""
+                        SELECT comment_text
+                        FROM comments
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    comments = [comment[0] for comment in cur.fetchall()]
+
+                    article_dict = {
+                        'id': article[0],
+                        'title': article[1],
+                        'url': article[2],
+                        'author': article[3],
+                        'published_date': article[4],
+                        'number_of_views': article[5],
+                        'tags': article_tags,
+                        'image_url': article[6],
+                        'article_text': article_text,
+                        'comments': comments,
+                        'source': article[7],
+                        'emotion': article[8],
+                        'source_name': article[9],
+                        'source_image_url': article[10]
+                    }
+                    articles_list.append(article_dict)
+
+                politician_dict['articles'] = articles_list
+
+            return jsonify(politician_dict)
+        else:
+            return jsonify({"error": "Politician not found"}), 404
+    except Exception as e:
+        print("Error fetching politician:", e)
+        return jsonify({"error": "Failed to fetch politician data"}), 500
+
+@app.route('/api/political_party/<int:id>', methods=['GET'])
+def get_political_party(id):
+    try:
+        cur = g.db_cursor
+        cur.execute("SELECT * FROM political_parties WHERE id = %s", (id,))
+        party = cur.fetchone()
+        if party:
+            cur.execute("SELECT tag_text FROM tag_political_parties JOIN tags ON tag_political_parties.tag_id = tags.id WHERE political_party_id = %s", (id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+            party_dict = dict(zip([desc[0] for desc in cur.description], party))
+            party_dict['tags'] = tags
+            return jsonify(party_dict)
+        else:
+            return jsonify({"error": "Political party not found"}), 404
+    except Exception as e:
+        print("Error fetching political party:", e)
+        return jsonify({"error": "Failed to fetch political party data"}), 500
+
+@app.route('/api/city/<int:id>', methods=['GET'])
+def get_city(id):
+    try:
+        cur = g.db_cursor
+        cur.execute("SELECT * FROM cities WHERE id = %s", (id,))
+        city = cur.fetchone()
+        if city:
+            cur.execute("SELECT tag_text FROM tag_city JOIN tags ON tag_city.tag_id = tags.id WHERE city_id = %s", (id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+            city_dict = dict(zip([desc[0] for desc in cur.description], city))
+            city_dict['tags'] = tags
+            return jsonify(city_dict)
+        else:
+            return jsonify({"error": "City not found"}), 404
+    except Exception as e:
+        print("Error fetching city:", e)
+        return jsonify({"error": "Failed to fetch city data"}), 500
+
+@app.route('/api/source/<int:id>', methods=['GET'])
+def get_source(id):
+    try:
+        cur = g.db_cursor
+        cur.execute("SELECT * FROM sources WHERE id = %s", (id,))
+        source = cur.fetchone()
+        if source:
+            source_dict = dict(zip([desc[0] for desc in cur.description], source))
+            return jsonify(source_dict)
+        else:
+            return jsonify({"error": "Source not found"}), 404
+    except Exception as e:
+        print("Error fetching source:", e)
+        return jsonify({"error": "Failed to fetch source data"}), 500

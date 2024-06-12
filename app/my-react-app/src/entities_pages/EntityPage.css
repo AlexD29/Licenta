@@ -1,0 +1,65 @@
+.entity-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-first-part{
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-second-part{
+  display: flex;
+  flex-direction: row;
+}
+
+.picture-div {
+  position: relative;
+  height: 25vh;
+  width: auto;
+  overflow: visible;
+  margin-bottom: 5.2rem;
+
+}
+
+.politician {
+  background-color: #002B7F;
+}
+
+.entity-profile-picture {
+  width: 18rem;
+  height: 12rem;
+  transform: translate(+20%, +35%);
+  border: 5px solid white;
+  margin-right:auto;
+}
+
+.politician-position{
+  color:white;
+  font-size: 30px;
+  transform: translate(+25%, -250%);
+  margin-left: auto;
+  display: block;
+}
+
+.profile-name-element{
+  margin-left: 4rem;
+  margin-bottom: 10px;
+  line-height: normal;
+}
+
+.political-party-card{
+  transform: translate(+80%, -205%);
+}
+
+.political-party-image{
+  border: 5px solid white;
+  width: 8rem;
+  height: 8rem;
+  cursor:pointer;
+}
+
+.politician-description{
+  transform: translate(+33%, -290%);
+  width: 75%;
+}

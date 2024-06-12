@@ -55,7 +55,7 @@ function Navbar() {
         <ul>
           <li><Link to="/explore">Explorează</Link></li>
           <li><a href="/my-interests">Interesele tale</a></li>
-          <li><a href="#">Despre</a></li>
+          <li><a href="/about">Despre</a></li>
           {isLoggedIn && (
             <li><Link to="/account">Cont</Link></li>
           )}
