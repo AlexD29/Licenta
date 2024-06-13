@@ -1,11 +1,19 @@
-.entity-page {
+.container{
   display: flex;
   flex-direction: column;
 }
 
-.entity-first-part{
+.entity-page-first-part {
   display: flex;
   flex-direction: column;
+  align-items: center;
+}
+
+.entity-first-part-centered{
+  display: flex;
+  flex-direction: column;
+  width: 75%;
+  position: relative;
 }
 
 .entity-second-part{
@@ -13,53 +21,259 @@
   flex-direction: row;
 }
 
-.picture-div {
+.background-div {
   position: relative;
   height: 25vh;
-  width: auto;
   overflow: visible;
-  margin-bottom: 5.2rem;
-
+  z-index: 1;
 }
 
 .politician {
   background-color: #002B7F;
 }
 
-.entity-profile-picture {
+.political-party{
+  background-color: #CE1126;
+}
+
+.city{
+  background-color: #FCD116;
+}
+
+.source{
+  background-color: #995a3e;
+}
+
+.info-first-column {
+  position: relative;
   width: 18rem;
-  height: 12rem;
-  transform: translate(+20%, +35%);
+  margin-top: -9.5rem;
+}
+
+.entity-profile-picture {
+  width: 13rem;
+  height: 13rem; 
   border: 5px solid white;
-  margin-right:auto;
+  z-index: 2;
+  position: relative; 
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  object-fit: cover;
+}
+
+.source-picture{
+  background-color: white;
+}
+
+.profile-info{
+  display: flex;
+  flex-direction: row;
+  margin: 2rem 0 2rem 3rem;
+}
+
+.profile-name{
+  margin-top: 0.6rem;
+}
+
+.profile-city{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.profile-birth{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.profile-svg{
+  width: 2rem;
+  height: auto;
+  margin-right: 1rem;
+}
+
+.population-svg{
+  width: 2.5rem;
+  height: auto;
+  margin-right: 1rem;
+}
+
+.population-row{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.info-second-column{
+  position: relative;
+  margin-left: 0.8rem;
+  width: 100%;
+}
+
+.second-column-first-row{
+  display: flex;
+  flex-direction: row;
+  margin-top: -5.5rem;
+  margin-bottom: 2rem;
+  justify-content: space-between;
+}
+
+.entity-big-text{
+  color:white;
+  font-size: 25px;
+  z-index: 2;
+  font-weight: bold;
+}
+
+.profile-button-div-political-party{
+  margin-right: 1rem;
+  z-index: 2;
+}
+
+.second-column-first-part{
+  display: flex;
+  flex-direction: row;
+  width: 100%;
 }
 
 .politician-position{
   color:white;
-  font-size: 30px;
-  transform: translate(+25%, -250%);
-  margin-left: auto;
-  display: block;
+  font-size: 25px;
+  z-index: 2;
+  margin-top: -5rem;
+  position: relative;
+  flex-grow: 1;
+  font-weight: bold;
 }
 
-.profile-name-element{
-  margin-left: 4rem;
-  margin-bottom: 10px;
-  line-height: normal;
+.politician-position-city{
+  color:black;
+  font-weight: bold;
+  font-size: 25px;
+  z-index: 2;
+  margin-top: -5rem;
+  position: relative;
+  flex-grow: 1;
 }
 
 .political-party-card{
-  transform: translate(+80%, -205%);
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  margin-left: auto;
+  text-align: center;
+  align-items: right;
+  margin-top: -10rem;
 }
 
 .political-party-image{
   border: 5px solid white;
-  width: 8rem;
-  height: 8rem;
+  width: 6rem;
+  height: 6rem;
+  margin-bottom: 2.5rem;
+}
+
+
+.has-image {
   cursor:pointer;
 }
 
-.politician-description{
-  transform: translate(+33%, -290%);
-  width: 75%;
+.default-image {
+  cursor:initial;
+}
+
+
+.follow-button-profile {
+  color: white;
+  border: none;
+  border-radius: 3px;
+  width: 10rem;
+  height: 2.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size:medium;
+}
+
+.follow-button-profile.add {
+  background-color: green;
+}
+
+.follow-button-profile.remove {
+  background-color: red;
+}
+
+.follow-button-profile:hover {
+  background-color: darkgreen;
+}
+
+.follow-button-profile.remove:hover {
+  background-color: darkred;
+}
+
+.follow-button-profile.inactive {
+  background-color: gray;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.profile-button-div{
+  text-align: right;
+  margin-top: 2rem;
+}
+
+.mayor-profile{
+  display: flex;
+  flex-direction: row;
+}
+
+.mayor-profile-link{
+  text-decoration: none;
+  color: black;
+}
+
+.mayor-profile-picture{
+  width: 5rem;
+  margin-right: 1rem;
+}
+
+
+/*ARTICLE LIST*/
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.page-nav {
+  margin: 0 10px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  background-color: #fff;
+}
+
+.page-nav:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.current-page {
+  margin: 0 10px;
+  font-weight: bold;
+}
+
+.page-nav{
+  color:black;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  display: flex;
+}
+
+.pagination-svg{
+  color:black;
+  width: 1.5rem;
+  height: 1.5rem;
 }

@@ -16,6 +16,9 @@ import Elections from './pages/Elections';
 import MyInterests from './pages/MyInterests';
 import About from './pages/About';
 import PoliticianPage from './entities_pages/PoliticianPage';
+import PoliticalPartyPage from './entities_pages/PoliticalPartyPage';
+import CityPage from './entities_pages/CityPage';
+import SourcePage from './entities_pages/SourcePage';
 
 function App() {
   const userId = 2;
@@ -39,10 +42,14 @@ function App() {
           <Route path="/alegeri/:category/page/:page" element={<Elections />} />
           <Route path="/my-interests" element={<MyInterests userId={userId} />} />
           <Route path="/about" element={<About />} />
-          <Route path="/politician/:id" element={<PoliticianPage />} />
-          {/* <Route path="/political_party/:id" element={<PoliticalPartyPage />} />
-          <Route path="/city/:id" element={<CityPage />} />
-          <Route path="/source/:id" element={<SourcePage />} /> */}
+          <Route path="/politician/:id" element={<PoliticianPage userId={userId} />} />
+          <Route path="/politician/:id/page/:page" element={<PoliticianPage userId={userId} />} />
+          <Route path="/political-party/:id" element={<PoliticalPartyPage userId={userId} />} />
+          <Route path="/political-party/:id/page/:page" element={<PoliticalPartyPage userId={userId} />} />
+          <Route path="/city/:id" element={<CityPage userId={userId} />} />
+          <Route path="/city/:id/page/:page" element={<CityPage userId={userId} />} />
+          <Route path="/source/:id" element={<SourcePage userId={userId} />} />
+          <Route path="/source/:id/page/:page" element={<SourcePage userId={userId} />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

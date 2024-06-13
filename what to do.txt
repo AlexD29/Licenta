@@ -9,8 +9,10 @@ Issues:
     - de rezolvat paginarea - not sure if it's worth it
     - de facut paginarea la Elections
     - published_date.isformat la scrape_ziaredotcom
+    - de facut paginarea sa mearga unde nu merge si sa arate mai bine
 
 TODAY:
     - de facut Article Details
     - de updatat search-ul
     - de scrapuit https://www.news.ro/politic-intern/
+    - de facut la Interesele tale sa se dea refresh la articole cand scoti ceva

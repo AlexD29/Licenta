@@ -4,6 +4,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import SearchBar from './SearchBar';
 
+const scrollToTheTop = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+export { scrollToTheTop };
+
 function Navbar() {
   const location = useLocation();
   const isLogin = location.pathname === '/login';

@@ -721,7 +721,7 @@ def explore_data():
 
         # Fetch top 3 cities based on tag appearances this week
         cur.execute("""
-            SELECT c.id, c.name, c.description, c.image_url, c.candidates_for_mayor, c.mayor, COUNT(t.id) AS tag_count
+            SELECT c.id, c.name, c.description, c.image_url, c.candidates_for_mayor, c.mayor_id, COUNT(t.id) AS tag_count
             FROM cities c
             JOIN tag_city tc ON c.id = tc.city_id
             JOIN tags t ON tc.tag_id = t.id
@@ -751,7 +751,7 @@ def explore_data():
                 'description': city[2],
                 'image_url': city[3],
                 'candidates_for_mayor': city[4],
-                'mayor': city[5],
+                'mayor_id': city[5],
                 'tags': tags
             }
             city_data.append(city_dict)
@@ -868,7 +868,7 @@ def cities_data():
     try:
         cur = g.db_cursor
         cur.execute("""
-            SELECT id, name, description, image_url, candidates_for_mayor, mayor
+            SELECT id, name, description, image_url, candidates_for_mayor, mayor_id
             FROM cities
         """)
         cities = cur.fetchall()
@@ -888,7 +888,7 @@ def cities_data():
                 'description': city[2],
                 'image_url': city[3],
                 'candidates_for_mayor': city[4],
-                'mayor': city[5],
+                'mayor_id': city[5],
                 'tags': tags
             }
             city_data.append(city_dict)
@@ -1155,7 +1155,7 @@ def get_my_interests():
                         'image_url': image_url
                     })
                     entity_tags[entity_id] = tags
-            elif entity_type == 'political_party':
+            elif entity_type == 'political-party':
                 cur.execute("""
                     SELECT pp.id, pp.abbreviation, pp.image_url, t.tag_text
                     FROM political_parties pp
@@ -1243,7 +1243,7 @@ def random_suggestions():
         politicians = cur.fetchall()
 
         # Fetch random political parties
-        cur.execute("SELECT id, abbreviation as name, image_url, 'political_party' as type FROM political_parties ORDER BY RANDOM() LIMIT 5")
+        cur.execute("SELECT id, abbreviation as name, image_url, 'political-party' as type FROM political_parties ORDER BY RANDOM() LIMIT 5")
         political_parties = cur.fetchall()
 
         # Combine politicians and political parties
@@ -1592,12 +1592,13 @@ def protected_route():
 @app.route('/api/politician/<int:id>', methods=['GET'])
 def get_politician(id):
     try:
+        user_id = request.args.get('user_id')
+        
         cur = g.db_cursor
-        # Specify the fields you want to return, including political party details
         fields = """
             p.id, p.first_name, p.last_name, p.city, p.image_url, p.position, p.description, 
             pp.id as political_party_id, pp.abbreviation as political_party_abbreviation, pp.image_url as political_party_image_url,
-            p.date_of_birth
+            p.date_of_birth, 'politician' as entity_type
         """
         cur.execute(f"""
             SELECT {fields}
@@ -1620,64 +1621,14 @@ def get_politician(id):
             cur.execute("SELECT tag_text FROM tag_politician JOIN tags ON tag_politician.tag_id = tags.id WHERE politician_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
             politician_dict['tags'] = tags
-
-            # Fetch articles associated with the politician
-            if tags:
-                cur.execute("""
-                    SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
-                        s.name AS source_name, s.image_url AS source_image_url
-                    FROM articles AS a
-                    JOIN sources AS s ON a.source = s.id
-                    JOIN tags AS t ON a.id = t.article_id
-                    WHERE t.tag_text IN %s
-                    GROUP BY a.id, s.id
-                    ORDER BY a.published_date DESC
-                    LIMIT 5
-                """, (tuple(tags),))
-                articles = cur.fetchall()
-
-                articles_list = []
-                for article in articles:
-                    cur.execute("""
-                        SELECT tag_text
-                        FROM tags
-                        WHERE article_id = %s
-                    """, (article[0],))
-                    article_tags = [tag[0] for tag in cur.fetchall()]
-
-                    cur.execute("""
-                        SELECT paragraph_text
-                        FROM article_paragraphs
-                        WHERE article_id = %s
-                    """, (article[0],))
-                    article_text = [paragraph[0] for paragraph in cur.fetchall()]
-
-                    cur.execute("""
-                        SELECT comment_text
-                        FROM comments
-                        WHERE article_id = %s
-                    """, (article[0],))
-                    comments = [comment[0] for comment in cur.fetchall()]
-
-                    article_dict = {
-                        'id': article[0],
-                        'title': article[1],
-                        'url': article[2],
-                        'author': article[3],
-                        'published_date': article[4],
-                        'number_of_views': article[5],
-                        'tags': article_tags,
-                        'image_url': article[6],
-                        'article_text': article_text,
-                        'comments': comments,
-                        'source': article[7],
-                        'emotion': article[8],
-                        'source_name': article[9],
-                        'source_image_url': article[10]
-                    }
-                    articles_list.append(article_dict)
-
-                politician_dict['articles'] = articles_list
+            
+            # Check if the entity is a favorite
+            if user_id:
+                cur.execute("SELECT 1 FROM favorites WHERE user_id = %s AND entity_id = %s AND entity_type = 'politician'", (user_id, id))
+                is_favorite = cur.fetchone() is not None
+                politician_dict['isFavorite'] = is_favorite
+            else:
+                politician_dict['isFavorite'] = None
 
             return jsonify(politician_dict)
         else:
@@ -1686,17 +1637,39 @@ def get_politician(id):
         print("Error fetching politician:", e)
         return jsonify({"error": "Failed to fetch politician data"}), 500
 
-@app.route('/api/political_party/<int:id>', methods=['GET'])
+@app.route('/api/political-party/<int:id>', methods=['GET'])
 def get_political_party(id):
     try:
+        user_id = request.args.get('user_id')
+        
         cur = g.db_cursor
-        cur.execute("SELECT * FROM political_parties WHERE id = %s", (id,))
+        fields = """
+            pp.id, pp.full_name, pp.abbreviation, pp.description, pp.image_url, 'political-party' as entity_type
+        """
+        cur.execute(f"""
+            SELECT {fields}
+            FROM political_parties pp
+            WHERE pp.id = %s
+        """, (id,))
         party = cur.fetchone()
+        
         if party:
+            # Convert the tuple to a dictionary
+            party_dict = dict(zip([desc[0] for desc in cur.description], party))
+            
+            # Fetch tags associated with the political party
             cur.execute("SELECT tag_text FROM tag_political_parties JOIN tags ON tag_political_parties.tag_id = tags.id WHERE political_party_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
-            party_dict = dict(zip([desc[0] for desc in cur.description], party))
             party_dict['tags'] = tags
+            
+            # Check if the entity is a favorite
+            if user_id:
+                cur.execute("SELECT 1 FROM favorites WHERE user_id = %s AND entity_id = %s AND entity_type = 'political-party'", (user_id, id))
+                is_favorite = cur.fetchone() is not None
+                party_dict['isFavorite'] = is_favorite
+            else:
+                party_dict['isFavorite'] = None
+
             return jsonify(party_dict)
         else:
             return jsonify({"error": "Political party not found"}), 404
@@ -1707,21 +1680,58 @@ def get_political_party(id):
 @app.route('/api/city/<int:id>', methods=['GET'])
 def get_city(id):
     try:
+        user_id = request.args.get('user_id')
+
         cur = g.db_cursor
-        cur.execute("SELECT * FROM cities WHERE id = %s", (id,))
+        
+        fields = """
+            c.id, c.name, c.population, c.image_url, c.description, c.mayor_id, 'city' as entity_type
+        """
+        cur.execute(f"""
+            SELECT {fields}
+            FROM cities c
+            WHERE c.id = %s
+        """, (id,))
         city = cur.fetchone()
+
         if city:
+            city_dict = dict(zip([desc[0] for desc in cur.description], city))
+            
+            # Fetch mayor_id details from politicians table
+            mayor_id = city_dict.get('mayor_id')
+            if mayor_id:
+                cur.execute("""
+                    SELECT id, first_name, last_name, image_url
+                    FROM politicians
+                    WHERE id = %s
+                """, (mayor_id,))
+                mayor_id = cur.fetchone()
+                if mayor_id:
+                    mayor_dict = {
+                        'id': mayor_id[0],
+                        'name': f"{mayor_id[1]} {mayor_id[2]}",
+                        'image_url': mayor_id[3]
+                    }
+                    city_dict['mayor'] = mayor_dict
+
             cur.execute("SELECT tag_text FROM tag_city JOIN tags ON tag_city.tag_id = tags.id WHERE city_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
-            city_dict = dict(zip([desc[0] for desc in cur.description], city))
             city_dict['tags'] = tags
+            
+            if user_id:
+                cur.execute("SELECT 1 FROM favorites WHERE user_id = %s AND entity_id = %s AND entity_type = 'city'", (user_id, id))
+                is_favorite = cur.fetchone() is not None
+                city_dict['isFavorite'] = is_favorite
+            else:
+                city_dict['isFavorite'] = None
+
             return jsonify(city_dict)
         else:
             return jsonify({"error": "City not found"}), 404
     except Exception as e:
         print("Error fetching city:", e)
         return jsonify({"error": "Failed to fetch city data"}), 500
-
+   
 @app.route('/api/source/<int:id>', methods=['GET'])
 def get_source(id):
     try:
@@ -1736,3 +1746,114 @@ def get_source(id):
     except Exception as e:
         print("Error fetching source:", e)
         return jsonify({"error": "Failed to fetch source data"}), 500
+
+@app.route('/api/articles/<entity_type>/<int:entity_id>', methods=['GET'])
+def get_articles_by_entity(entity_type, entity_id):
+    try:
+        cur = g.db_cursor
+        if entity_type not in ['politician', 'political-party', 'city', 'source']:
+            return jsonify({"error": "Invalid entity type"}), 400
+
+        tags = []
+        if entity_type == 'politician':
+            cur.execute("SELECT tag_text FROM tag_politician JOIN tags ON tag_politician.tag_id = tags.id WHERE politician_id = %s", (entity_id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+        elif entity_type == 'political-party':
+            cur.execute("SELECT tag_text FROM tag_political_parties JOIN tags ON tag_political_parties.tag_id = tags.id WHERE political_party_id = %s", (entity_id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+        elif entity_type == 'city':
+            cur.execute("SELECT tag_text FROM tag_city JOIN tags ON tag_city.tag_id = tags.id WHERE city_id = %s", (entity_id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 5))
+        offset = (page - 1) * limit
+
+        if entity_type == 'source':
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM articles
+                WHERE source = %s
+            """, (entity_id,))
+            total_articles = cur.fetchone()[0]
+
+            cur.execute("""
+                SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                    s.name AS source_name, s.image_url AS source_image_url
+                FROM articles AS a
+                JOIN sources AS s ON a.source = s.id
+                WHERE a.source = %s
+                ORDER BY a.published_date DESC
+                LIMIT %s OFFSET %s
+            """, (entity_id, limit, offset))
+        else:
+            if tags:
+                cur.execute("""
+                    SELECT COUNT(*)
+                    FROM articles AS a
+                    JOIN tags AS t ON a.id = t.article_id
+                    WHERE t.tag_text IN %s
+                """, (tuple(tags),))
+                total_articles = cur.fetchone()[0]
+
+                cur.execute("""
+                    SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
+                        s.name AS source_name, s.image_url AS source_image_url
+                    FROM articles AS a
+                    JOIN sources AS s ON a.source = s.id
+                    JOIN tags AS t ON a.id = t.article_id
+                    WHERE t.tag_text IN %s
+                    GROUP BY a.id, s.id
+                    ORDER BY a.published_date DESC
+                    LIMIT %s OFFSET %s
+                """, (tuple(tags), limit, offset))
+            else:
+                return jsonify({"total": 0, "articles": []})
+
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            article_tags = [tag[0] for tag in cur.fetchall()]
+
+            cur.execute("""
+                SELECT paragraph_text
+                FROM article_paragraphs
+                WHERE article_id = %s
+            """, (article[0],))
+            article_text = [paragraph[0] for paragraph in cur.fetchall()]
+
+            cur.execute("""
+                SELECT comment_text
+                FROM comments
+                WHERE article_id = %s
+            """, (article[0],))
+            comments = [comment[0] for comment in cur.fetchall()]
+
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': article_tags,
+                'image_url': article[6],
+                'article_text': article_text,
+                'comments': comments,
+                'source': article[7],
+                'emotion': article[8],
+                'source_name': article[9],
+                'source_image_url': article[10]
+            }
+            articles_list.append(article_dict)
+
+        return jsonify({"total": total_articles, "articles": articles_list})
+    except Exception as e:
+        print("Error fetching articles:", e)
+        return jsonify({"error": "Failed to fetch articles"}), 500
