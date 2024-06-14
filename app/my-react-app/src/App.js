@@ -19,6 +19,7 @@ import PoliticianPage from './entities_pages/PoliticianPage';
 import PoliticalPartyPage from './entities_pages/PoliticalPartyPage';
 import CityPage from './entities_pages/CityPage';
 import SourcePage from './entities_pages/SourcePage';
+import SearchResults from './SearchResults';
 
 function App() {
   const userId = 2;
@@ -50,6 +51,7 @@ function App() {
           <Route path="/city/:id/page/:page" element={<CityPage userId={userId} />} />
           <Route path="/source/:id" element={<SourcePage userId={userId} />} />
           <Route path="/source/:id/page/:page" element={<SourcePage userId={userId} />} />
+          <Route path="/search" element={<SearchResults userId={userId} />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

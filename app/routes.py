@@ -10,7 +10,7 @@ from flask import g
 from datetime import datetime, timedelta, date
 from flask import jsonify
 from .models import db
-from .queries import query_politicians, query_political_parties, query_cities, query_tags
+from .queries import *
 
 app = Flask(__name__)
 CORS(app)
@@ -1226,6 +1226,8 @@ def get_my_interests():
         print("Error fetching my interests:", e)
         return jsonify({"error": "Failed to fetch my interests"}), 500
 
+
+### MY INTERESTS SUGGESTIONS ###
 @app.route('/api/random-suggestions', methods=['GET'])
 def random_suggestions():
     if g.db_cursor is None or g.db_conn is None:
@@ -1265,6 +1267,9 @@ def random_suggestions():
     except Exception as e:
         print("Error fetching random suggestions:", e)
         return jsonify({"error": "Failed to fetch random suggestions"}), 500
+
+
+### SEARCH SUGGESTIONS ###
 
 def get_articles_by_politician_id(politician_id):
     try:
@@ -1449,29 +1454,70 @@ def get_articles_by_city_id(city_id):
         print("Error fetching articles for city:", e)
         return []
 
+def get_articles_by_source_id(source_id):
+    try:
+        cur = g.db_cursor
+        cur.execute("""
+            SELECT id, title, url, author, published_date, number_of_views, image_url, source
+            FROM articles
+            WHERE source = %s
+            ORDER BY published_date ASC
+        """, (source_id,))
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'image_url': article[6],
+                'source': article[7]
+            }
+            articles_list.append(article_dict)
+
+        return articles_list
+
+    except Exception as e:
+        print("Error fetching articles for source:", e)
+        return []
+
 @app.route('/api/suggestions')
 def get_suggestions():
     query = request.args.get('query')
+    
+    # Querying entities
     politician_suggestions = query_politicians(query)
     political_parties_suggestions = query_political_parties(query)
     cities_suggestions = query_cities(query)
+    elections_suggestions = query_elections(query)
+    sources_suggestions = query_sources(query)
     
-    suggestions_from_entities = politician_suggestions + political_parties_suggestions + cities_suggestions
+    suggestions_from_entities = (politician_suggestions + political_parties_suggestions + 
+                                 cities_suggestions + elections_suggestions + sources_suggestions)
+    
     if suggestions_from_entities:
+        # Handling case when only one suggestion is found
         if len(suggestions_from_entities) == 1:
             single_suggestion = suggestions_from_entities[0]
             articles = []
+            
+            # Fetching articles based on the single suggestion category
             if single_suggestion['category'] == 'Politician':
-                politician_id = single_suggestion['id']
-                articles = get_articles_by_politician_id(politician_id)
+                articles = get_articles_by_politician_id(single_suggestion['id'])
             elif single_suggestion['category'] == 'Partid politic':
-                political_party_id = single_suggestion['id']
-                articles = get_articles_by_political_party_id(political_party_id)
+                articles = get_articles_by_political_party_id(single_suggestion['id'])
             elif single_suggestion['category'] == 'Oraș':
-                city_id = single_suggestion['id']
-                articles = get_articles_by_city_id(city_id)
-
+                articles = get_articles_by_city_id(single_suggestion['id'])
+            elif single_suggestion['category'] == 'Sursă':
+                articles = get_articles_by_source_id(single_suggestion['id'])
+            
+            # Creating article suggestions
             article_suggestions = [{
+                'id':  article['id'],
                 'title': article['title'],
                 'url': article['url'],
                 'author': article['author'],
@@ -1481,113 +1527,38 @@ def get_suggestions():
                 'source': article['source'],
                 'category': 'Article'
             } for article in articles[:4]]
-
+            
             suggestions = suggestions_from_entities[:5] + article_suggestions
             return jsonify(suggestions[:5])
 
-        suggestions = suggestions_from_entities[:5]
-        return jsonify(suggestions)
+        return jsonify(suggestions_from_entities[:5])
 
-    tags_suggestions = query_tags(query)
-    suggestions = tags_suggestions[:5]
-    return jsonify(suggestions)
-
-def generate_session_token():
-    return secrets.token_hex(16)
-
-@app.route('/api/signup', methods=['POST'])
-def signup():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-
-        if not email or not password:
-            return jsonify({"error": "Email and password are required"}), 400
-
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-        cur = g.db_cursor
-
-        cur.execute("SELECT get_next_user_id()")
-        next_user_id = cur.fetchone()[0] + 1
-
-        cur.execute("INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s) RETURNING email", (next_user_id, email, hashed_password.decode('utf-8')))
-        new_user_email = cur.fetchone()[0]
-
-        g.db_conn.commit()
-
-        session_token = generate_session_token()
-        cur.execute("UPDATE users SET session_token = %s WHERE email = %s", (session_token, email))
-        g.db_conn.commit()
-
-        return jsonify({
-            'id': next_user_id,
-            'email': new_user_email,
-            'session_token': session_token
-        }), 201
-
-    except Exception as e:
-        print("Error signing up:", e)
-        return jsonify({"error": "Failed to signup"}), 500
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-
-        if not email or not password:
-            return jsonify({"error": "Email and password are required"}), 400
-
-        cur = g.db_cursor
-
-        cur.execute("SELECT id, email, password_hash FROM users WHERE email = %s", (email,))
-        user = cur.fetchone()
-
-        if not user:
-            return jsonify({"error": "Invalid email or password"}), 401
-
-        if not bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
-            return jsonify({"error": "Invalid email or password"}), 401
-        
-        session_token = generate_session_token()
-        cur.execute("UPDATE users SET session_token = %s WHERE id = %s", (session_token, user[0]))
-        g.db_conn.commit()
-
-        return jsonify({
-            'id': user[0],
-            'email': user[1],
-            'session_token': session_token
-        }), 200
-
-    except Exception as e:
-        print("Error logging in:", e)
-        return jsonify({"error": "Failed to login"}), 500
+    # Querying articles if no entity suggestions are found
+    article_suggestions = query_articles(query)
+    if article_suggestions:
+        return jsonify(article_suggestions[:5])
     
-@app.route('/api/protected', methods=['GET'])
-def protected_route():
-    try:
-        session_token = request.cookies.get('session_token')
+    # Querying tags if no entity or article suggestions are found
+    tags_suggestions = query_tags(query)
+    return jsonify(tags_suggestions[:5])
 
-        if not session_token:
-            return jsonify({"error": "Session token is required"}), 401
 
-        cur = g.db_cursor
+### SEARCH RESULTS ###
+@app.route('/api/search', methods=['GET'])
+def search():
+    query = request.args.get('query')
+    results = {
+        "politicians": query_politicians(query),
+        "political_parties": query_political_parties(query),
+        "cities": query_cities(query),
+        "elections": query_elections(query),
+        "sources": query_sources(query),
+        "articles": query_articles(query)
+    }
+    return jsonify(results)
 
-        cur.execute("SELECT * FROM users WHERE session_token = %s", (session_token,))
-        user = cur.fetchone()
 
-        if not user:
-            return jsonify({"error": "Invalid session token"}), 401
-
-        return jsonify({"message": "You are authorized to access this resource"}), 200
-
-    except Exception as e:
-        print("Error accessing protected route:", e)
-        return jsonify({"error": "Failed to access protected route"}), 500
-
+### ENTITIES PAGES ###
 
 @app.route('/api/politician/<int:id>', methods=['GET'])
 def get_politician(id):
@@ -1596,14 +1567,14 @@ def get_politician(id):
         
         cur = g.db_cursor
         fields = """
-            p.id, p.first_name, p.last_name, p.city, p.image_url, p.position, p.description, 
+            p.id, p.first_name, p.last_name, p.city, p.image_url, p.position, p.description, p.political_party_position,
             pp.id as political_party_id, pp.abbreviation as political_party_abbreviation, pp.image_url as political_party_image_url,
             p.date_of_birth, 'politician' as entity_type
         """
         cur.execute(f"""
             SELECT {fields}
             FROM politicians p
-            LEFT JOIN political_parties pp ON p.political_party = pp.id
+            LEFT JOIN political_parties pp ON p.political_party_id = pp.id
             WHERE p.id = %s
         """, (id,))
         politician = cur.fetchone()
@@ -1857,3 +1828,103 @@ def get_articles_by_entity(entity_type, entity_id):
     except Exception as e:
         print("Error fetching articles:", e)
         return jsonify({"error": "Failed to fetch articles"}), 500
+
+
+
+### LOGIN ###
+
+def generate_session_token():
+    return secrets.token_hex(16)
+
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({"error": "Email and password are required"}), 400
+
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+        cur = g.db_cursor
+
+        cur.execute("SELECT get_next_user_id()")
+        next_user_id = cur.fetchone()[0] + 1
+
+        cur.execute("INSERT INTO users (id, email, password_hash) VALUES (%s, %s, %s) RETURNING email", (next_user_id, email, hashed_password.decode('utf-8')))
+        new_user_email = cur.fetchone()[0]
+
+        g.db_conn.commit()
+
+        session_token = generate_session_token()
+        cur.execute("UPDATE users SET session_token = %s WHERE email = %s", (session_token, email))
+        g.db_conn.commit()
+
+        return jsonify({
+            'id': next_user_id,
+            'email': new_user_email,
+            'session_token': session_token
+        }), 201
+
+    except Exception as e:
+        print("Error signing up:", e)
+        return jsonify({"error": "Failed to signup"}), 500
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            return jsonify({"error": "Email and password are required"}), 400
+
+        cur = g.db_cursor
+
+        cur.execute("SELECT id, email, password_hash FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+
+        if not user:
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        if not bcrypt.checkpw(password.encode('utf-8'), user[2].encode('utf-8')):
+            return jsonify({"error": "Invalid email or password"}), 401
+        
+        session_token = generate_session_token()
+        cur.execute("UPDATE users SET session_token = %s WHERE id = %s", (session_token, user[0]))
+        g.db_conn.commit()
+
+        return jsonify({
+            'id': user[0],
+            'email': user[1],
+            'session_token': session_token
+        }), 200
+
+    except Exception as e:
+        print("Error logging in:", e)
+        return jsonify({"error": "Failed to login"}), 500
+    
+@app.route('/api/protected', methods=['GET'])
+def protected_route():
+    try:
+        session_token = request.cookies.get('session_token')
+
+        if not session_token:
+            return jsonify({"error": "Session token is required"}), 401
+
+        cur = g.db_cursor
+
+        cur.execute("SELECT * FROM users WHERE session_token = %s", (session_token,))
+        user = cur.fetchone()
+
+        if not user:
+            return jsonify({"error": "Invalid session token"}), 401
+
+        return jsonify({"message": "You are authorized to access this resource"}), 200
+
+    except Exception as e:
+        print("Error accessing protected route:", e)
+        return jsonify({"error": "Failed to access protected route"}), 500

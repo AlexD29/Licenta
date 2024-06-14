@@ -22,7 +22,7 @@ class Politician(db.Model):
     last_name = db.Column(db.String)
     city = db.Column(db.String)
     image_url = db.Column(db.String)
-    age = db.Column(db.Integer)
+    date_of_birth = db.Column(db.Integer)
     position = db.Column(db.String)
     description = db.Column(db.Text)
     tags = relationship("Tag", secondary="tag_politician")
@@ -42,7 +42,7 @@ class City(db.Model):
     name = db.Column(db.String)
     description = db.Column(db.String)
     image_url = db.Column(db.String)
-    mayor = db.Column(db.String)
+    mayor_id = db.Column(db.String)
     candidates_for_mayor = db.Column(db.String)
     tags = relationship("Tag", secondary="tag_city")
 
@@ -51,6 +51,19 @@ class Tag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     tag_text = db.Column(db.String)
     article_id = db.Column(db.String)
+
+class Election(db.Model):
+    __tablename__ = 'elections'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    date = db.Column(db.String)
+    image_url = db.Column(db.String)
+
+class Source(db.Model):
+    __tablename__ = 'sources'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    image_url = db.Column(db.String)
 
 class TagPolitician(db.Model):
     __tablename__ = 'tag_politician'

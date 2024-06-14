@@ -1,0 +1,13 @@
+.results-page{
+    display: flex;
+    flex-direction: column;
+}
+
+.results-text-div{
+    height: 30%;
+}
+
+.results-div{
+    display: flex;
+    flex-direction: row;
+}

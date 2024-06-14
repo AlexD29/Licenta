@@ -1,6 +1,7 @@
 from sqlalchemy.sql import func
+from sqlalchemy import and_, or_
 import unicodedata
-from .models import Article, Politician, PoliticalParty, City, Tag, TagCity, TagPoliticalParty, TagPolitician
+from .models import Article, Politician, PoliticalParty, City, Tag, Election, Source, TagCity, TagPoliticalParty, TagPolitician
 
 def normalize_string(input_str):
     nfkd_form = unicodedata.normalize('NFKD', input_str)
@@ -8,11 +9,35 @@ def normalize_string(input_str):
 
 def query_articles(query):
     normalized_query = normalize_string(query).lower()
-    articles = Article.query.filter(func.unaccent(func.lower(Article.title)).ilike(f'%{normalized_query}%')).all()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    filters = [
+        func.unaccent(func.lower(Article.title)).ilike(f'%{part}%')
+        for part in query_parts
+    ]
+
+    query_filter = and_(*filters)
+    articles = Article.query.filter(query_filter).all()
+
+    prioritized_articles = []
+    other_articles = []
+
+    for article in articles:
+        title = article.title.lower()
+        if normalized_query in title:
+            prioritized_articles.append(article)
+        else:
+            other_articles.append(article)
+
+    sorted_articles = prioritized_articles + other_articles
 
     article_suggestions = []
-    for article in articles:
+    for article in sorted_articles:
         article_dict = {
+            "id": article.id,
             "title": article.title,
             "url": article.url,
             "author": article.author,
@@ -24,18 +49,46 @@ def query_articles(query):
             "category": "Article"
         }
         article_suggestions.append(article_dict)
+
     return article_suggestions
 
 def query_politicians(query):
     normalized_query = normalize_string(query).lower()
-    politicians = Politician.query.filter(
-        (func.unaccent(func.lower(Politician.first_name)).ilike(f'%{normalized_query}%')) |
-        (func.unaccent(func.lower(Politician.last_name)).ilike(f'%{normalized_query}%')) |
-        (func.unaccent(func.lower(Politician.city)).ilike(f'%{normalized_query}%'))
-    ).all()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    # Build filters for each part of the query
+    filters = [
+        or_(
+            func.unaccent(func.lower(Politician.first_name)).ilike(f'%{part}%'),
+            func.unaccent(func.lower(Politician.last_name)).ilike(f'%{part}%'),
+            func.unaccent(func.lower(Politician.city)).ilike(f'%{part}%')
+        )
+        for part in query_parts
+    ]
+
+    # Combine filters with AND to ensure all parts are matched
+    query_filter = and_(*filters)
+    politicians = Politician.query.filter(query_filter).all()
+
+    # Additional filtering to prioritize exact sequence matches
+    prioritized_politicians = []
+    other_politicians = []
+
+    for politician in politicians:
+        full_name = f"{politician.first_name} {politician.last_name}".lower()
+        if normalized_query in full_name:
+            prioritized_politicians.append(politician)
+        else:
+            other_politicians.append(politician)
+
+    # Combine prioritized and other politicians, ensuring all matches are returned
+    sorted_politicians = prioritized_politicians + other_politicians
 
     politician_suggestions = []
-    for politician in politicians:
+    for politician in sorted_politicians:
         politician_dict = {
             "id": politician.id,
             "first_name": politician.first_name,
@@ -44,17 +97,46 @@ def query_politicians(query):
             "category": "Politician"
         }
         politician_suggestions.append(politician_dict)
+
     return politician_suggestions
 
 def query_political_parties(query):
-    normalized_query = normalize_string(query).lower()  # Normalize and lowercase the query on the client-side
-    political_parties = PoliticalParty.query.filter(
-        (func.unaccent(func.lower(PoliticalParty.abbreviation)).ilike(f'%{normalized_query}%')) |
-        (func.unaccent(func.lower(PoliticalParty.full_name)).ilike(f'%{normalized_query}%'))
-    ).all()
-    
-    political_party_suggestions = []
+    normalized_query = normalize_string(query).lower()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    # Build filters for each part of the query
+    filters = [
+        or_(
+            func.unaccent(func.lower(PoliticalParty.abbreviation)).ilike(f'%{part}%'),
+            func.unaccent(func.lower(PoliticalParty.full_name)).ilike(f'%{part}%')
+        )
+        for part in query_parts
+    ]
+
+    # Combine filters with AND to ensure all parts are matched
+    query_filter = and_(*filters)
+    political_parties = PoliticalParty.query.filter(query_filter).all()
+
+    # Additional filtering to prioritize exact sequence matches
+    prioritized_political_parties = []
+    other_political_parties = []
+
     for political_party in political_parties:
+        full_name = political_party.full_name.lower()
+        abbreviation = political_party.abbreviation.lower()
+        if normalized_query in full_name or normalized_query in abbreviation:
+            prioritized_political_parties.append(political_party)
+        else:
+            other_political_parties.append(political_party)
+
+    # Combine prioritized and other political parties, ensuring all matches are returned
+    sorted_political_parties = prioritized_political_parties + other_political_parties
+
+    political_party_suggestions = []
+    for political_party in sorted_political_parties:
         political_party_dict = {
             "id": political_party.id,
             "abbreviation": political_party.abbreviation,
@@ -62,16 +144,38 @@ def query_political_parties(query):
             "category": "Partid politic"
         }
         political_party_suggestions.append(political_party_dict)
+
     return political_party_suggestions
 
 def query_cities(query):
     normalized_query = normalize_string(query).lower()
-    cities = City.query.filter(
-        (func.unaccent(func.lower(City.name)).ilike(f'%{normalized_query}%'))
-    ).all()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    filters = [
+        func.unaccent(func.lower(City.name)).ilike(f'%{part}%')
+        for part in query_parts
+    ]
+
+    query_filter = and_(*filters)
+    cities = City.query.filter(query_filter).all()
+
+    prioritized_cities = []
+    other_cities = []
+
+    for city in cities:
+        name = city.name.lower()
+        if normalized_query in name:
+            prioritized_cities.append(city)
+        else:
+            other_cities.append(city)
+
+    sorted_cities = prioritized_cities + other_cities
 
     city_suggestions = []
-    for city in cities:
+    for city in sorted_cities:
         city_dict = {
             "id": city.id,
             "name": city.name,
@@ -79,22 +183,124 @@ def query_cities(query):
             "category": "Oraș"
         }
         city_suggestions.append(city_dict)
+
     return city_suggestions
 
 def query_tags(query):
     normalized_query = normalize_string(query).lower()
-    tags = Tag.query.filter(
-        (func.unaccent(func.lower(Tag.tag_text)).ilike(f'%{normalized_query}%'))
-    ).all()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    filters = [
+        func.unaccent(func.lower(Tag.tag_text)).ilike(f'%{part}%')
+        for part in query_parts
+    ]
+
+    query_filter = and_(*filters)
+    tags = Tag.query.filter(query_filter).all()
+
+    prioritized_tags = []
+    other_tags = []
+
+    for tag in tags:
+        tag_text = tag.tag_text.lower()
+        if normalized_query in tag_text:
+            prioritized_tags.append(tag)
+        else:
+            other_tags.append(tag)
+
+    sorted_tags = prioritized_tags + other_tags
 
     tags_suggestions = []
-    for tag in tags:
+    for tag in sorted_tags:
         tag_dict = {
+            "id": tag.id,
             "tag_text": tag.tag_text,
             "category": "Tag"
         }
         tags_suggestions.append(tag_dict)
+
     return tags_suggestions
+
+def query_elections(query):
+    normalized_query = normalize_string(query).lower()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    filters = [
+        func.unaccent(func.lower(Election.name)).ilike(f'%{part}%')
+        for part in query_parts
+    ]
+
+    query_filter = and_(*filters)
+    elections = Election.query.filter(query_filter).all()
+
+    prioritized_elections = []
+    other_elections = []
+
+    for election in elections:
+        name = election.name.lower()
+        if normalized_query in name:
+            prioritized_elections.append(election)
+        else:
+            other_elections.append(election)
+
+    sorted_elections = prioritized_elections + other_elections
+
+    election_suggestions = []
+    for election in sorted_elections:
+        election_dict = {
+            "id": election.id,
+            "name": election.name,
+            "image_url": election.image_url,
+            "category": "Alegeri"
+        }
+        election_suggestions.append(election_dict)
+
+    return election_suggestions
+
+def query_sources(query):
+    normalized_query = normalize_string(query).lower()
+    query_parts = normalized_query.split()
+
+    if not query_parts:
+        return []
+
+    filters = [
+        func.unaccent(func.lower(Source.name)).ilike(f'%{part}%')
+        for part in query_parts
+    ]
+
+    query_filter = and_(*filters)
+    sources = Source.query.filter(query_filter).all()
+
+    prioritized_sources = []
+    other_sources = []
+
+    for source in sources:
+        name = source.name.lower()
+        if normalized_query in name:
+            prioritized_sources.append(source)
+        else:
+            other_sources.append(source)
+
+    sorted_sources = prioritized_sources + other_sources
+
+    source_suggestions = []
+    for source in sorted_sources:
+        source_dict = {
+            "id": source.id,
+            "name": source.name,
+            "image_url": source.image_url,
+            "category": "Sursă"
+        }
+        source_suggestions.append(source_dict)
+
+    return source_suggestions
 
 def query_articles_by_tags(tags):
     articles = []

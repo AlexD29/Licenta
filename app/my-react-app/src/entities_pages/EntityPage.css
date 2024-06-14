@@ -80,10 +80,11 @@
   align-items: center;
 }
 
-.profile-birth{
+.profile-icon-plus-text{
   display: flex;
   flex-direction: row;
   align-items: center;
+  margin-bottom: 0.5rem;
 }
 
 .profile-svg{
@@ -221,18 +222,21 @@
   margin-top: 2rem;
 }
 
-.mayor-profile{
+.entity-profile{
   display: flex;
   flex-direction: row;
+  height: 3rem;
+  text-align: center;
+  width: 100%;
 }
 
-.mayor-profile-link{
+.entity-profile-link{
   text-decoration: none;
   color: black;
 }
 
-.mayor-profile-picture{
-  width: 5rem;
+.entity-profile-picture-mini{
+  width: auto;
   margin-right: 1rem;
 }
 

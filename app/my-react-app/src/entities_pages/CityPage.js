@@ -92,19 +92,18 @@ const CityPage = ({ userId }) => {
                 </div>
               </div>
               {city.mayor && (
-                <div className="mayor-info">
+                <div>
                   <h3>Primar</h3>
                   <Link
-                    className="mayor-profile-link"
+                    className="entity-profile-link"
                     to={`/politician/${city.mayor.id}`}
                   >
-                    <div className="mayor-profile">
+                    <div className="entity-profile">
                       <img
                         src={city.mayor.image_url}
                         alt={`${city.mayor.name}`}
-                        className="mayor-profile-picture"
+                        className="entity-profile-picture-mini"
                       />
-
                       <p>{city.mayor.name}</p>
                     </div>
                   </Link>

@@ -84,7 +84,7 @@ const PoliticianPage = ({ userId }) => {
               <h1 className="profile-name">
                 {politician.first_name} {politician.last_name}
               </h1>
-              <p className="profile-city">
+              <div className="profile-icon-plus-text">
                 <span>
                   <svg
                     className="profile-svg"
@@ -132,9 +132,9 @@ const PoliticianPage = ({ userId }) => {
                     <g></g>
                   </svg>
                 </span>
-                Locuiește în {politician.city}
-              </p>
-              <p className="profile-birth">
+                Locuiește în {politician.politician}
+              </div>
+              <div className="profile-icon-plus-text">
                 <span>
                   <svg
                     className="profile-svg"
@@ -153,41 +153,42 @@ const PoliticianPage = ({ userId }) => {
                   </svg>
                 </span>
                 Născut pe {formatDate(politician.date_of_birth)}<br/>{politician.age} de ani
-              </p>
-            </div>
-            <div className="info-second-column">
-              <div className="second-column-first-part">
-                <div className="politician-position">{politician.position}</div>
-                <div className="political-party-card">
+              </div>
+              {politician.political_party_abbreviation && (
                 <Link
-                    className="political-party-link"
-                    to={politician.political_party_image_url ? `/political-party/${politician.political_party_id}` : '#'}
+                  className="entity-profile-link"
+                  to={politician.political_party_image_url ? `/political-party/${politician.political_party_id}` : '#'}
                 >
+                  <div className="entity-profile">
                     <img
                         src={politician.political_party_image_url ? politician.political_party_image_url : '../icons/individual-politician.jpg'}
-                        className={`political-party-image ${politician.political_party_image_url ? 'has-image' : 'default-image'}`}
+                        className="entity-profile-picture-mini"
                         alt="Political Party"
                     />
+                    <p>{politician.political_party_position} {politician.political_party_abbreviation}</p>
+                  </div>
                 </Link>
+              )}
+            </div>
+            <div className="info-second-column">
+              <div className="second-column-first-row">
+                  <div className="entity-big-text">{politician.position}</div>
+                  <div className="profile-button-div-political-party">
                     <button
-                        className={`follow-button-profile ${
-                        !userId
-                            ? "inactive"
-                            : politician.isFavorite
-                            ? "remove"
-                            : "add"
-                        }`}
-                        onClick={() => handleAddFavorite(politician)}
-                        disabled={!userId}
+                      className={`follow-button-profile ${
+                        !userId ? "inactive" : politician.isFavorite ? "remove" : "add"
+                      }`}
+                      onClick={() => handleAddFavorite(politician)}
+                      disabled={!userId}
                     >
-                        {politician.isFavorite ? "Nu mai urmări" : "Urmarește"}
+                      {politician.isFavorite ? "Nu mai urmări" : "Urmarește"}
                     </button>
+                  </div>
                 </div>
-              </div>
-              <div className="politician-description">
-                <h3>Despre</h3>
-                <p>{politician.description}</p>
-              </div>
+                <div className="politician-description">
+                  <h3>Despre</h3>
+                  <p>{politician.description}</p>
+                </div>
             </div>
           </div>
         </div>
