@@ -5,6 +5,15 @@ import Footer from '../Footer';
 import { formatDate } from '../Articles';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 
+const calculateRemainingDays = (date) => {
+    const now = new Date();
+    const diffTime = Math.abs(date - now);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+};
+
+export {calculateRemainingDays};
+
 const Pagination = ({ currentPage, totalPages, category }) => {
     const renderPagination = (currentPage, totalPages) => {
         let pages = [];
@@ -123,12 +132,6 @@ const Elections = () => {
         'Alegeri Parlamentare': new Date('2024-12-08')
     };
 
-    const calculateRemainingDays = (date) => {
-        const now = new Date();
-        const diffTime = Math.abs(date - now);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays;
-    };
 
     if (loading) {
         return (

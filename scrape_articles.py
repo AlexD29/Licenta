@@ -13,8 +13,16 @@ from fuzzywuzzy import fuzz
 from unidecode import unidecode
 from urllib3.exceptions import InsecureRequestWarning
 from tries.predict import predict_label, tokenizer, model
+from langdetect import detect, DetectorFactory
+from langdetect.lang_detect_exception import LangDetectException
+
+# Ensure consistent results
+DetectorFactory.seed = 0
 
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+
+
+### UTILS ###
 
 def create_db_connection():
     connection = psycopg2.connect(
@@ -97,6 +105,17 @@ def extract_date_and_title(title_with_date):
     title = parts[1]
     return date_str, title
 
+def is_text_english(text):
+    try:
+        lang = detect(text)
+        return lang == 'en'
+    except LangDetectException:
+        return False
+
+
+
+### NEXT PAGE ###
+
 def get_next_page_ziaredotcom(soup):
     pagination = soup.find('ul', class_='pagination')
     if pagination:
@@ -167,12 +186,17 @@ def get_next_page_observator(current_page_url):
     return next_page_url
 
 def get_next_page_hotnews(current_page_url):
-    if current_page_url[-1].isdigit():
-        current_page_number = int(current_page_url.split('/')[-1])
+    if 'page/' in current_page_url:
+        # Extract the current page number and increment it
+        current_page_number = int(current_page_url.rstrip('/').rsplit('/', 1)[-1])
         next_page_number = current_page_number + 1
         next_page_url = current_page_url.rsplit('/', 1)[0] + '/' + str(next_page_number)
     else:
-        next_page_url = current_page_url + '/2'
+        # Append the 'page/2' to the URL if it's the first page
+        if current_page_url.endswith('/'):
+            next_page_url = current_page_url + 'page/2'
+        else:
+            next_page_url = current_page_url + '/page/2'
     return next_page_url
 
 def get_next_page_stiripesurse_and_gandul(current_page_url):
@@ -205,6 +229,10 @@ def get_next_page_url_antena3(current_url):
     next_page_url = '/'.join(parts)
     return next_page_url
 
+
+
+### TAGS ###
+
 def filter_and_normalize_tag(tag):
     tag = tag.lower()
     tag = tag.translate(str.maketrans('ăâîșț', 'aaist'))
@@ -232,7 +260,7 @@ def match_tags_to_entities(tags, article_id, published_date, cur, conn):
         insert_unmatched_tags(unmatched_tags, article_id, cur, conn)
 
 def is_election_tag(tag):
-    election_keywords = ['alegeri', 'europarlamentare', 'locale', 'prezidentiale', 'parlamentare']
+    election_keywords = ['alegeri', 'alegerile', 'alegerilor', 'rezultate', 'sondaje', 'sondaj' , 'europarlamentare', 'locale', 'prezidentiale', 'parlamentare']
     return any(keyword in tag.lower() for keyword in election_keywords)
 
 def match_election(tag):
@@ -273,32 +301,20 @@ def match_word_to_entities(word, cur):
 
 def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, published_date):
     cur.execute("""
-        SELECT id, count, timestamps
+        SELECT id
         FROM tags
         WHERE tag_text = %s
     """, (tag,))
     result = cur.fetchone()
 
-    published_date_str = published_date.isoformat()
+    cur.execute("""
+        INSERT INTO tags (article_id, tag_text)
+        VALUES (%s, %s)
+        RETURNING id
+    """, (article_id, tag))
+    tag_id = cur.fetchone()[0]
 
-    if result:
-        tag_id, count, timestamps = result
-        timestamps.append(published_date_str)
-        cur.execute("""
-            UPDATE tags
-            SET count = count + 1, timestamps = %s
-            WHERE id = %s
-        """, (json.dumps(timestamps), tag_id))
-        conn.commit()
-    else:
-        cur.execute("""
-            INSERT INTO tags (article_id, tag_text, count, timestamps)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id
-        """, (article_id, tag, 1, json.dumps([published_date_str])))
-        tag_id = cur.fetchone()[0]
-        conn.commit()
-
+    if not result:
         if table_name == "politicians":
             cur.execute("""
                 INSERT INTO tag_politician (tag_id, politician_id)
@@ -319,7 +335,7 @@ def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, pub
                 INSERT INTO tag_election (tag_id, election_id)
                 VALUES (%s, %s)
             """, (tag_id, entity_id))
-    
+
     conn.commit()
 
 def insert_unmatched_tags(unmatched_tags, article_id, cur, conn):
@@ -346,6 +362,49 @@ def insert_unmatched_tags(unmatched_tags, article_id, cur, conn):
             """, (article_id, tag_text, 1))
             conn.commit()
 
+def normalize_and_remove_diacritics(text):
+    normalized_text = unicodedata.normalize('NFC', text)
+    diacritic_map = {
+        'ă': 'a', 'Ă': 'A',
+        'â': 'a', 'Â': 'A',
+        'î': 'i', 'Î': 'I',
+        'ș': 's', 'Ș': 'S',
+        'ț': 't', 'Ț': 'T',
+    }
+    for diacritic, letter in diacritic_map.items():
+        normalized_text = normalized_text.replace(diacritic, letter)
+    return normalized_text
+
+def extract_uppercase_word_groups(text):
+    normalized_text = normalize_and_remove_diacritics(text)
+    pattern1 = r'\b[A-ZȘȚÂÎ][a-zșțâî]{2,}\b(?:\s+[A-ZȘȚÂÎ][a-zșțâî]{2,}\b)*'
+    pattern2 = r'\b[A-ZȘȚÂÎ][a-zșțâî]*\b\s+\d+'
+    pattern3 = r'\b[A-ZȘȚÂÎ]{2,}\b'
+    pattern4 = r'\b[A-ZȘȚÂÎ][a-zșțâî]{2,}\b'
+    regex1 = re.compile(pattern1, re.UNICODE)
+    regex2 = re.compile(pattern2, re.UNICODE)
+    regex3 = re.compile(pattern3, re.UNICODE)
+    regex4 = re.compile(pattern4, re.UNICODE)
+    matches1 = regex1.findall(normalized_text)
+    matches2 = regex2.findall(normalized_text)
+    matches3 = regex3.findall(normalized_text)
+    matches4 = regex4.findall(normalized_text)
+    all_matches = set(matches1 + matches2 + matches3 + matches4)
+    filtered_matches = set()
+    for tag in all_matches:
+        if len(tag.split()) > 1:
+            is_subset = any(tag in multi_tag.split() for multi_tag in all_matches if multi_tag != tag)
+            if not is_subset:
+                filtered_matches.add(tag)
+        else:
+            if not any(tag in multi_tag.split() for multi_tag in all_matches if multi_tag != tag):
+                filtered_matches.add(tag)
+    return filtered_matches
+
+
+
+### SCRAPPING ###
+
 def extract_article_id_ziaredotcom(article_url):
     segments = article_url.split('/')
     last_segment = segments[-1]
@@ -356,7 +415,7 @@ def extract_article_id_ziaredotcom(article_url):
     else:
         return None
 
-def scrape_article_ziaredotcom(article_url):
+def scrape_article_ziaredotcom(article_url, title):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -365,11 +424,14 @@ def scrape_article_ziaredotcom(article_url):
 
         number_of_views = soup.find('div', class_='news__views').text.strip()
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('div', class_='tags__container article__marker')
         if tags_div:
-            tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tags_div.find_all('a')]
+            article_tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tags_div.find_all('a')]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         img_tag = soup.find('a', class_='news__image').find('img')
         image_url_with_dimensions = img_tag['src']
@@ -431,7 +493,7 @@ def scrape_ziaredotcom():
                             print("Ziare.com - UPDATED.")
                             break
                         article_url = link.a['href']
-                        article_data = scrape_article_ziaredotcom(article_url)
+                        article_data = scrape_article_ziaredotcom(article_url, title)
                         if article_data:
                             content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
                             emotion_label = predict_label(content, tokenizer, model)
@@ -465,7 +527,7 @@ def scrape_ziaredotcom():
                                 """, (article_id, paragraph_text))
                                 conn.commit()
 
-                            match_tags_to_entities(article_data['tags'], article_id, parse_published_date, cur, conn)
+                            match_tags_to_entities(article_data['tags'], article_id, parsed_published_date, cur, conn)
                             
                             for comment_text in article_data['comments']:
                                 cur.execute("""
@@ -493,7 +555,7 @@ def extract_author_name(link):
     author_name = author_name.replace('-', ' ').title()
     return author_name
 
-def scrape_article_digi24(article_url):
+def scrape_article_digi24(article_url, title):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -509,12 +571,15 @@ def scrape_article_digi24(article_url):
         else:
             author_name = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tag_elements = soup.find('ul', class_='tags-list')
         if tag_elements:
             tag_links = tag_elements.find_all('a')
-            tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tag_links]
+            article_tags = [filter_and_normalize_tag(tag.get_text(strip=True)) for tag in tag_links]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         date_elements = soup.find('div', class_='author-meta')
         second_span_element = date_elements.find_all('span')[-1]
@@ -568,7 +633,7 @@ def scrape_digi24():
                 article_url = "https://www.digi24.ro" + a_element['href']
                 unfiltered_title = a_element.get_text(strip=True)
                 title = clean_title_digi24(unfiltered_title)
-                article_data = scrape_article_digi24(article_url)
+                article_data = scrape_article_digi24(article_url, title)
                 if article_data:
                     published_date = article_data['published_date']
                     if is_published_this_year(published_date):
@@ -627,8 +692,8 @@ def scrape_digi24():
     cur.close()
     conn.close()
 
-def check_if_updated_mediafax(url):
-    latest_article_date = get_latest_article_date("Mediafax")
+def check_if_updated_mediafax(url, cur):
+    latest_article_date = get_latest_article_date("Mediafax", cur)
     print(latest_article_date)
     response = requests.get(url)
     if response.status_code == 200:
@@ -638,14 +703,15 @@ def check_if_updated_mediafax(url):
             'a.title:not([title="UPDATE"]):not([title="LIVE TEXT"]):not([title="VIDEO"]):not([title="BREAKING NEWS"])')
         for link in article_links:
             article_url = link['href']
-            article_data = scrape_article_mediafax(article_url)
+            title = link.get_text(strip=True)
+            article_data = scrape_article_mediafax(article_url, title)
             if article_data:
                 published_date = article_data['published_date']
                 if latest_article_date is not None and published_date <= latest_article_date:
                     return True
     return False
 
-def scrape_article_mediafax(article_url):
+def scrape_article_mediafax(article_url, title):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -656,14 +722,15 @@ def scrape_article_mediafax(article_url):
         else:
             author_name = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         dl_element = soup.find('dl', class_='a-tags')
         if dl_element:
             dd_elements = dl_element.find_all('dd')
-            tags = [filter_and_normalize_tag(dd.get_text(strip=True))  for dd in dd_elements]
+            article_tags = [filter_and_normalize_tag(dd.get_text(strip=True))  for dd in dd_elements]
         else:
-            tags = []
-
-        print(tags)
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         views_extracted = soup.find('span', class_='views')
         if views_extracted:
@@ -695,20 +762,22 @@ def scrape_article_mediafax(article_url):
         }
     else:
         print("Failed to scrape article:", article_url)
-    
+
 def scrape_mediafax():
+    conn = create_db_connection()
+    cur = conn.cursor()
     base_url = "https://www.mediafax.ro/politic/arhiva/"
     current_date = datetime.datetime.now()
     current_month = current_date.month
     month_url = f"{base_url}2024/{current_month:02d}"
     print(month_url)
-    if check_if_updated_mediafax(month_url):
+    if check_if_updated_mediafax(month_url, cur):
         print("\nMediaFax - UPDATED.\n")
     else:
         for month in range(current_month, 0, -1):
             month_url = f"{base_url}2024/{month:02d}"
             print(f"Scraping articles from: {month_url}")
-            scrape_articles_from_month_mediafax(month_url)
+            scrape_articles_from_month_mediafax(month_url, cur, conn)
 
 def scrape_articles_from_month_mediafax(month_url, cur, conn):
     stop_scraping = False
@@ -723,10 +792,13 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
             for link in article_links:
                 article_url = link['href']
                 title = link.get_text(strip=True)
-                print(title)
-                article_data = scrape_article_mediafax(article_url)
+                article_data = scrape_article_mediafax(article_url, title)
                 if article_data:
-                    content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+
+                    if len(article_data['article_text']) > 1:
+                        content = f"{title} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                    else:
+                        content = f"{title} {article_data['article_text'][0]}"
                     emotion_label = predict_label(content, tokenizer, model)
 
                     source_name = 'Mediafax'
@@ -736,7 +808,7 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
 
                     cur.execute("""
                         INSERT INTO articles (title, url, author, number_of_views, published_date, image_url, source, emotion)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         title,
                         article_url,
@@ -765,13 +837,13 @@ def scrape_articles_from_month_mediafax(month_url, cur, conn):
                 else:
                     print("Failed to scrape article:", article_url)
             month_url = get_next_page_mediafax(month_url)
-            # print("\nPAGE CHANGED.\n", month_url)
+            print("\nPAGE CHANGED.\n", month_url)
             if month_url is None:
                 stop_scraping = True
         else:
             print("Failed to fetch page:", month_url)
 
-def scrape_article_protv(article_url):
+def scrape_article_protv(article_url, title):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -786,12 +858,15 @@ def scrape_article_protv(article_url):
         else:
             author_name = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         second_p = soup.find('div', class_='article--info').find_all('p')[1]
         if second_p:
             tag_links = second_p.find_all('a')
-            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
+            article_tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         image_element = soup.find('img', class_='article-picture img-fluidi')
         if image_element:
@@ -841,7 +916,7 @@ def scrape_protv():
                 backup_image_with_dimensions = image_div.find('img')['data-src']
                 backup_image = remove_image_dimensions(backup_image_with_dimensions)
 
-                article_data = scrape_article_protv(article_url)
+                article_data = scrape_article_protv(article_url, title)
                 if article_data:
                     published_date = article_data['published_date']
                     if is_published_this_year(published_date):
@@ -941,12 +1016,15 @@ def scrape_article_adevarul(article_url):
         else:
             author_name = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('div', class_='tags svelte-1kju2ho')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
+            article_tags = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
-            tags_string = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         time_element = soup.find('time', class_='svelte-hvtg27')
         datetime_str = time_element['datetime']
@@ -964,7 +1042,7 @@ def scrape_article_adevarul(article_url):
             'title': title,
             'author': author_name,
             'published_date': published_date,
-            'tags': tags_string,
+            'tags': tags,
             'image_url': image_url,
             'comments': comments,
             'article_text': article_text
@@ -1089,7 +1167,7 @@ def scrape_adevarul():
     cur.close()
     conn.close()
 
-def scrape_article_observator(article_url):
+def scrape_article_observator(article_url, title):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -1100,12 +1178,15 @@ def scrape_article_observator(article_url):
         else:
             author = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('div', class_='taguri')
         if tags_div:
             tag_links = tags_div.find_all('a')
-            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
+            article_tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         image_element = soup.find('div', class_="media-top").find('img', class_="lazy wow fadeIn")
         if image_element:
@@ -1159,7 +1240,7 @@ def scrape_observator():
                 backup_image_with_dimensions = article.find('img')['data-src']
                 backup_image = remove_image_dimensions(backup_image_with_dimensions)
                 article_url = article_a_element['href']
-                article_data = scrape_article_observator(article_url)
+                article_data = scrape_article_observator(article_url, title)
                 if article_data:
                     published_date = article_data['published_date']
                     if is_published_this_year(published_date):
@@ -1221,63 +1302,54 @@ def scrape_observator():
     cur.close()
     conn.close()
 
+### nu are tags naturale, comments nu mai merg
 def scrape_article_hotnews(article_url):
     response = requests.get(article_url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
-        main_div = soup.find('article', class_='article-page')
+        main_div = soup.find('article', class_='article-single-page')
 
-        title = main_div.find('h1', class_='title').text.strip()
-        unwanted_words = ["VIDEO"]
+        if not main_div:
+            print("Failed to scrape article:", article_url)
+            return
+
+        title = main_div.find('h1', class_='entry-title').text.strip()
+        unwanted_words = ["VIDEO", "GRAFICĂ INTERACTIVĂ"]
         for word in unwanted_words:
             title = title.replace(word, "").strip()
 
-        img_div = main_div.find('img', class_='lead-img')
+        img_div = main_div.find('img', class_='article-single-featured-image')
         image_url_with_dimensions = img_div['src']
         image_url = remove_image_dimensions(image_url_with_dimensions)
 
-        author_span = main_div.find('span', class_='author')
-        if author_span:
-            author_name = author_span.find('a').text.strip()
-        else:
-            author_name = "Unknown"
+        author_span = main_div.find('li', class_='author vcard')
+        author_name = author_span.text.strip() if author_span else "Unknown"
 
-        tags = []
-        words = re.findall(r'\b\w+\b', title)
-        i = 0
-        while i < len(words):
-            word = words[i]
-            if len(word) >= 3 and (word.isupper() or word[0].isupper()):
-                # Check if next words also start with an uppercase letter
-                while i + 1 < len(words) and words[i + 1][0].isupper():
-                    word += ' ' + words[i + 1]
-                    i += 1
-                tag = filter_and_normalize_tag(word)
-                tags.append(tag)
-            i += 1
+        raw_title_tags = extract_uppercase_word_groups(title)
+        tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
 
-        unparsed_published_date = main_div.find('span', class_='ora is-actualitate').text.strip()
-        published_date = parse_published_date(unparsed_published_date)
-        published_date = datetime.datetime.strptime(published_date, '%Y-%m-%d %H:%M:%S')
+        unparsed_published_date = main_div.find('time', class_='entry-date published')
+        published_date_str = unparsed_published_date['datetime']
+        published_date = datetime.datetime.fromisoformat(published_date_str)
 
-        main_element = main_div.find('div', class_='article-body is-actualitate')
+        main_element = main_div.find('div', class_='entry-content')
         article_text = [p.get_text(strip=True) for p in main_element.find_all('p')]
 
-        comments_div = soup.find('div', id='comments')
-        comments = []
-        if comments_div:
-            comment_bodies = comments_div.find_all('div', class_='comment-body')
-            if comment_bodies:
-                for comment_body in comment_bodies:
-                    comments.append(comment_body.get_text(strip=True))
-            
+
+        # Sunt foarte futute comentariile aici
+        # comments_div = soup.find('div', id='comments')
+        # comments = []
+        # if comments_div:
+        #     comment_bodies = comments_div.find_all('div', class_='comment-body')
+        #     comments = [comment_body.get_text(strip=True) for comment_body in comment_bodies]
+
         return {
             'title': title,
             'author': author_name,
             'published_date': published_date,
-            'tags': tags,
+            'tags': list(tags),
             'image_url': image_url,
-            'comments': comments,
+            # 'comments': comments,
             'article_text': article_text
         }
     else:
@@ -1287,7 +1359,7 @@ def scrape_hotnews():
     conn = create_db_connection()
     cur = conn.cursor()
     source_name = 'HotNews'
-    url = "https://www.hotnews.ro/politic"
+    url = "https://hotnews.ro/c/actualitate/politic"
     stop_scraping = False
     latest_article_date = get_latest_article_date(source_name, cur)
     print(latest_article_date)
@@ -1295,25 +1367,20 @@ def scrape_hotnews():
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            first_article = soup.find('div', class_='snip poz-1').find('a')
-
-            rest_div_elements = soup.find_all('div', class_='grid-2x3x1')
+            article_divs = soup.find_all('article', class_='post-has-image')
             links = []
-            links.append(first_article['href'])
-            for div_element in rest_div_elements:
-                articles = div_element.find_all('article')
-                for article in articles:
-                    first_a = article.select_one('a')
-                    if first_a:
-                        article_url = first_a['href']
-                        links.append(article_url)
+            for article_div in article_divs:
+                a_tag = article_div.find('figure').find('a')
+                if a_tag:
+                    links.append(a_tag['href'])
 
             for article_url in links:
                 article_data = scrape_article_hotnews(article_url)
                 if article_data:
                     published_date = article_data['published_date']
                     if is_published_this_year(published_date):
-                        if latest_article_date is not None and published_date <= latest_article_date:
+                        published_date_naive = published_date.replace(tzinfo=None)
+                        if latest_article_date is not None and published_date_naive <= latest_article_date:
                             stop_scraping = True
                             print("\nHotNews - UPDATED.\n")
                             break
@@ -1351,12 +1418,13 @@ def scrape_hotnews():
 
                         match_tags_to_entities(article_data['tags'], article_id, published_date, cur, conn)
 
-                        for comment_text in article_data['comments']:
-                            cur.execute("""
-                                INSERT INTO comments (article_id, comment_text)
-                                VALUES (%s, %s)
-                            """, (article_id, comment_text))
-                            conn.commit()
+                        # for comment_text in article_data['comments']:
+                        #     cur.execute("""
+                        #         INSERT INTO comments (article_id, comment_text)
+                        #         VALUES (%s, %s)
+                        #     """, (article_id, comment_text))
+                        #     conn.commit()
+
                         print(f"{source_name} INSERTED.\n")
                     else:
                         stop_scraping = True
@@ -1380,32 +1448,39 @@ def scrape_article_stiripesurse(article_url):
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        unfiltered_title_element = soup.find('h1', class_='article-single-title')
+        unfiltered_title_element = soup.select_one('h1.article-single-title-v2, h1.article-single-title')
         if unfiltered_title_element:
             unfiltered_title = unfiltered_title_element.get_text(strip=True)
             words_to_filter = ["VIDEO", "Video"]
             title_words = unfiltered_title.split()
             filtered_words = [word for word in title_words if word not in words_to_filter]
             title = ' '.join(filtered_words)
-        else:
-            title = "No title"
 
-        info_div = soup.find('div', class_='article-single-meta')
+            if is_text_english(title):
+                print("The article title is in English. Skipping the article.")
+                return
+        else:
+            title = "Fara titlu"
+
+        info_div = soup.select_one('div.article-single-meta, div.article-single-meta-v2')
         if info_div:
             unfiltered_author = info_div.find('address').get_text(strip=True)
             author = unfiltered_author.split(',')[0].strip()
         else:
-            author = "Unknown"
+            author = "Necunoscut"
 
         published_date_str = info_div.find('time').get_text(strip=True)
         published_date = datetime.datetime.strptime(published_date_str, '%d/%m/%Y %H:%M')
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         second_p = soup.find('div', class_='article-tags')
         if second_p:
             tag_links = second_p.find_all('a')
-            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
+            article_tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         image_element = soup.find('img', class_='attachment-large')
         if image_element:
@@ -1474,7 +1549,10 @@ def scrape_stiripesurse():
                             print("\nStiri pe surse - UPDATED.\n")
                             break
 
-                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        if len(article_data['article_text']) > 1:
+                            content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        else:
+                            content = f"{article_data['title']} {article_data['article_text'][0]} "
                         emotion_label = predict_label(content, tokenizer, model)
 
                         cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
@@ -1541,12 +1619,15 @@ def scrape_article_gandul(article_url):
         date_time_str = published_date_str.replace('Publicat: ', '').replace(',', '')
         published_date = datetime.datetime.strptime(date_time_str, '%d/%m/%Y %H:%M')
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('div', class_='single__tags mg-bottom-20')
         if tags_div:
             tag_links = tags_div.find_all('a')
-            tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
+            article_tags = [filter_and_normalize_tag(tag.text.strip()) for tag in tag_links]
         else:
-            tags = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         image_element = soup.find('div', class_='single__media').findChildren('picture', recursive=False)
         if image_element:
@@ -1692,12 +1773,15 @@ def scrape_article_bursa(article_url):
         else:
             author_name = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('footer', class_='post-meta').find('p')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
+            article_tags = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
-            tags_string = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         string_published_date = info_header.find_all('span')[1].find('span').text.strip()
         months = {
@@ -1728,7 +1812,7 @@ def scrape_article_bursa(article_url):
             'title': title,
             'author': author_name,
             'published_date': published_date,
-            'tags': tags_string,
+            'tags': tags,
             'image_url': image_url,
             'comments': comments,
             'article_text': article_text
@@ -1828,7 +1912,7 @@ def scrape_bursa():
     cur.close()
     conn.close()
 
-def scrape_article_antena3(article_url):
+def scrape_article_antena3(article_url, title):
     custom_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     headers = {"User-Agent": custom_user_agent}
     response = requests.get(article_url, headers=headers)
@@ -1852,12 +1936,15 @@ def scrape_article_antena3(article_url):
         else:
             author = "Unknown"
 
+        raw_title_tags = extract_uppercase_word_groups(title)
+        title_tags = [filter_and_normalize_tag(tag) for tag in raw_title_tags]
         tags_div = soup.find('div', class_='tags')
         if tags_div:
             a_tags = tags_div.find_all('a')
-            tags_string = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
+            article_tags = [filter_and_normalize_tag(tag.get_text()) for tag in a_tags]
         else:
-            tags_string = []
+            article_tags = []
+        tags = set(title_tags).union(article_tags)
 
         string_published_date = info_spans[1].text.strip()
         months = {
@@ -1889,7 +1976,7 @@ def scrape_article_antena3(article_url):
         return {
             'author': author,
             'published_date': published_date,
-            'tags': tags_string,
+            'tags': tags,
             'image_url': image_url,
             'article_text': article_text
         }
@@ -1923,7 +2010,7 @@ def scrape_antena3():
                 backup_image_element = article.find('div', class_='thumb')
                 backup_image = backup_image_element.find('img')['data-src']
                 article_url = article.find('h2').find('a')['href']
-                article_data = scrape_article_antena3(article_url)
+                article_data = scrape_article_antena3(article_url, title)
                 if article_data:
                     published_date = article_data['published_date']
                     if is_published_this_year(published_date):
@@ -1986,9 +2073,9 @@ def scrape_antena3():
     cur.close()
     conn.close()
    
-# source_scrapers = [scrape_ziaredotcom, scrape_digi24]
+# source_scrapers = [scrape_gandul]
 source_scrapers = [scrape_ziaredotcom, scrape_adevarul, scrape_stiripesurse, scrape_digi24, 
-                   scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3]
+                   scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3, scrape_mediafax]
 
 #scrape_mediafax() # - are o problema la schimbarea paginii + aparent are problema ca la un moment dat zice ca date
 # element e None....

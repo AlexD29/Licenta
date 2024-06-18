@@ -1547,6 +1547,10 @@ def get_suggestions():
 @app.route('/api/search', methods=['GET'])
 def search():
     query = request.args.get('query')
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 10))
+    offset = (page - 1) * limit
+
     results = {
         "politicians": query_politicians(query),
         "political_parties": query_political_parties(query),
@@ -1555,8 +1559,37 @@ def search():
         "sources": query_sources(query),
         "articles": query_articles(query)
     }
-    return jsonify(results)
 
+    # Combine all entities into a single list
+    entities = []
+    for category in ["politicians", "political_parties", "cities", "elections", "sources"]:
+        if results[category]:
+            entities.extend(results[category])
+
+    # Add articles to entities if there's space
+    if results["articles"]:
+        entities.extend(results["articles"])
+
+    total_results = len(entities)
+
+    # Calculate total number of pages based on the combined results
+    total_pages = (total_results + limit - 1) // limit
+
+    # Paginate the combined results
+    paginated_results = entities[offset:offset + limit]
+
+    response = {
+        "results": paginated_results,
+        "totalPages": total_pages,
+        "totalResults": total_results,
+        "currentPage": page
+    }
+
+    print(f"Page: {page}, Limit: {limit}, Offset: {offset}, Total Results: {total_results}, Total Pages: {total_pages}")
+
+    return jsonify(response)
+
+ 
 
 ### ENTITIES PAGES ###
 

@@ -12,8 +12,10 @@ class Article(db.Model):
     published_date = db.Column(db.String)
     number_of_views = db.Column(db.Integer)
     image_url = db.Column(db.String)
-    source = db.Column(db.Text)
+    source = db.Column(db.Integer, db.ForeignKey('sources.id'))  # stores the source ID
     emotion = db.Column(db.Text)
+
+    source_rel = db.relationship('Source', backref=db.backref('articles', lazy=True))
 
 class Politician(db.Model):
     __tablename__ = 'politicians'
@@ -43,6 +45,7 @@ class City(db.Model):
     description = db.Column(db.String)
     image_url = db.Column(db.String)
     mayor_id = db.Column(db.String)
+    population = db.Column(db.String)
     candidates_for_mayor = db.Column(db.String)
     tags = relationship("Tag", secondary="tag_city")
 

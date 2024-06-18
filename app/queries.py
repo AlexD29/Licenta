@@ -1,5 +1,8 @@
 from sqlalchemy.sql import func
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
+from sqlalchemy import desc
+from app.routes import db
 import unicodedata
 from .models import Article, Politician, PoliticalParty, City, Tag, Election, Source, TagCity, TagPoliticalParty, TagPolitician
 
@@ -20,22 +23,30 @@ def query_articles(query):
     ]
 
     query_filter = and_(*filters)
-    articles = Article.query.filter(query_filter).all()
+
+    # Perform the join with the Source table
+    articles = (
+        db.session.query(Article, Source)
+        .join(Source, Article.source == Source.id)
+        .filter(query_filter)
+        .order_by(desc(Article.published_date))
+        .all()
+    )
 
     prioritized_articles = []
     other_articles = []
 
-    for article in articles:
+    for article, source in articles:
         title = article.title.lower()
         if normalized_query in title:
-            prioritized_articles.append(article)
+            prioritized_articles.append((article, source))
         else:
-            other_articles.append(article)
+            other_articles.append((article, source))
 
     sorted_articles = prioritized_articles + other_articles
 
     article_suggestions = []
-    for article in sorted_articles:
+    for article, source in sorted_articles:
         article_dict = {
             "id": article.id,
             "title": article.title,
@@ -44,7 +55,10 @@ def query_articles(query):
             "published_date": article.published_date,
             "number_of_views": article.number_of_views,
             "image_url": article.image_url,
-            "source": article.source,
+            "source": {
+                "name": source.name,
+                "image_url": source.image_url
+            },
             "emotion": article.emotion,
             "category": "Article"
         }
@@ -94,6 +108,7 @@ def query_politicians(query):
             "first_name": politician.first_name,
             "last_name": politician.last_name,
             "image_url": politician.image_url,
+            "position": politician.position,
             "category": "Politician"
         }
         politician_suggestions.append(politician_dict)
@@ -141,6 +156,7 @@ def query_political_parties(query):
             "id": political_party.id,
             "abbreviation": political_party.abbreviation,
             "image_url": political_party.image_url,
+            "full_name": political_party.full_name,
             "category": "Partid politic"
         }
         political_party_suggestions.append(political_party_dict)
@@ -180,6 +196,7 @@ def query_cities(query):
             "id": city.id,
             "name": city.name,
             "image_url": city.image_url,
+            "population": city.population,
             "category": "Oraș"
         }
         city_suggestions.append(city_dict)
@@ -257,6 +274,7 @@ def query_elections(query):
             "id": election.id,
             "name": election.name,
             "image_url": election.image_url,
+            "date": election.date,
             "category": "Alegeri"
         }
         election_suggestions.append(election_dict)

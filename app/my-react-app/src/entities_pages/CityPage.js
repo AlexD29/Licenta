@@ -9,6 +9,8 @@ function formatPopulation(population) {
   return population.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
 
+export {formatPopulation};
+
 const CityPage = ({ userId }) => {
   const { id, page } = useParams();
   const currentPage = parseInt(page, 10) || 1;

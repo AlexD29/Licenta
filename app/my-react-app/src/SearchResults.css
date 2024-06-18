@@ -3,11 +3,91 @@
     flex-direction: column;
 }
 
-.results-text-div{
-    height: 30%;
-}
+.results-text-div {
+    border: 1px solid #ccc; /* Lighter border color */
+    border-radius: 8px; /* Rounded corners */
+    background-color: #f9f9f9; /* Light background color */
+    padding: 1.5rem; /* Increased padding for better spacing */
+    margin: 2rem; /* Margin around the div */
+     /* Adjust width based on content */
+    max-width: 100%; /* Limit width for responsiveness */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  }
+  
+  .results-text-div h1 {
+    margin: 0; /* Remove default margin for cleaner header */
+    font-size: 1.8rem; /* Larger font size for main header */
+    color: #333; /* Dark text color */
+  }
+  
+  .results-text-div p {
+    margin-top: 0.5rem; /* Small top margin for paragraphs */
+    font-size: 1.2rem; /* Slightly smaller font size for additional info */
+    color: #666; /* Medium gray text color */
+  }
+  
 
 .results-div{
     display: flex;
     flex-direction: row;
+}
+
+.entities-list{
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.entity-link-minimized {
+    text-decoration: none;
+    color: inherit;
+}
+
+.entity-card-minimized {
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    margin-bottom: 20px;
+    height: 10rem;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.entity-card-minimized:hover {
+    background-color: #f3f3f3;
+  }
+
+.entity-image-div-minimized {
+    width: 30%;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.entity-image-minimized {
+    width: 95%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.political-party-image-minimized{
+    width: 83%;
+}
+
+.entity-details-div-minimized {
+    padding: 10px;
+    width: 70%;
+    margin-top: 10px;
+}
+
+.source-details-div{
+    align-content: center;
+}
+
+.entity-text-minimized {
+    margin: 0;
+    font-size: larger;
+    text-align: left;
+}
+
+.entity-text-minimized:first-child {
+    font-weight: bold;
 }

@@ -18,4 +18,5 @@ Issues:
 TODAY:
     - Search-ul
     - De reparat sursele
-    - De extras tag-urile calumea 
+    - De extras tag-urile calumea
+    - Search-ul pe articole sa caute si pe tag-uri ca de exemplu daca are tag udmr dar nu contine udmr in titlu nu va aparea
