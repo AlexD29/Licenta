@@ -199,68 +199,6 @@ def get_article(article_id):
         print("Error fetching article:", e)
         return jsonify({"error": "Failed to fetch article"}), 500
 
-@app.route('/api/articles/today', methods=['GET'])
-def get_today_articles():
-    try:
-        today_date = datetime.now().date()
-
-        cur = g.db_cursor
-
-        cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
-            FROM articles AS a
-            WHERE DATE(a.published_date) = %s
-            ORDER BY a.published_date DESC
-        """, (today_date,))
-        articles = cur.fetchall()
-
-        articles_list = []
-        for article in articles:
-            cur.execute("""
-                SELECT tag_text
-                FROM tags
-                WHERE article_id = %s
-            """, (article[0],))
-            tags = [tag[0] for tag in cur.fetchall()]
-
-            cur.execute("""
-                SELECT paragraph_text
-                FROM article_paragraphs
-                WHERE article_id = %s
-            """, (article[0],))
-            article_text = [paragraph[0] for paragraph in cur.fetchall()]
-
-            cur.execute("""
-                SELECT comment_text
-                FROM comments
-                WHERE article_id = %s
-            """, (article[0],))
-            comments = [comment[0] for comment in cur.fetchall()]
-
-            article_dict = {
-                'id': article[0],
-                'title': article[1],
-                'url': article[2],
-                'author': article[3],
-                'published_date': article[4],
-                'number_of_views': article[5],
-                'tags': tags,
-                'image_url': article[6],
-                'article_text': article_text,
-                'comments': comments,
-                'emotion': article[8],
-                'source': article[7]
-            }
-            articles_list.append(article_dict)
-
-        return jsonify({
-            'articles': articles_list,
-        })
-
-    except Exception as e:
-        print("Error fetching today's articles:", e)
-        return jsonify({"error": "Failed to fetch today's articles"}), 500
-
 @app.route('/api/politician_articles', methods=['GET'])
 def politician_articles():
     try:
@@ -1961,3 +1899,149 @@ def protected_route():
     except Exception as e:
         print("Error accessing protected route:", e)
         return jsonify({"error": "Failed to access protected route"}), 500
+
+
+
+### CHARTS ###
+
+@app.route('/api/articles/today', methods=['GET'])
+def get_today_articles():
+    try:
+        today_date = datetime.now().date()
+
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
+            FROM articles AS a
+            WHERE DATE(a.published_date) = %s
+            ORDER BY a.published_date DESC
+        """, (today_date,))
+        articles = cur.fetchall()
+
+        articles_list = []
+        for article in articles:
+            cur.execute("""
+                SELECT tag_text
+                FROM tags
+                WHERE article_id = %s
+            """, (article[0],))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+            cur.execute("""
+                SELECT name
+                FROM sources
+                WHERE id = %s
+            """, (article[7],))
+            source = cur.fetchone()
+
+            article_dict = {
+                'id': article[0],
+                'title': article[1],
+                'url': article[2],
+                'author': article[3],
+                'published_date': article[4],
+                'number_of_views': article[5],
+                'tags': tags,
+                'image_url': article[6],
+                'emotion': article[8],
+                'source': source
+            }
+            articles_list.append(article_dict)
+
+        return jsonify({
+            'articles': articles_list,
+        })
+
+    except Exception as e:
+        print("Error fetching today's articles:", e)
+        return jsonify({"error": "Failed to fetch today's articles"}), 500
+
+@app.route('/api/articles/emotion-distribution', methods=['GET'])
+def get_emotion_distribution():
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        query = """
+            SELECT s.id, s.name, s.image_url, a.emotion, COUNT(*)
+            FROM articles AS a
+            JOIN sources AS s ON a.source = s.id
+            WHERE 1=1
+        """
+        params = []
+
+        if start_date:
+            query += " AND DATE(a.published_date) >= %s"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND DATE(a.published_date) <= %s"
+            params.append(end_date)
+
+        query += " GROUP BY s.id, s.name, s.image_url, a.emotion"
+
+        cur = g.db_cursor
+        cur.execute(query, tuple(params))
+        results = cur.fetchall()
+
+        emotion_distribution = {}
+        for source_id, name, image_url, emotion, count in results:
+            if name not in emotion_distribution:
+                emotion_distribution[name] = {
+                    'id': source_id,
+                    'image_url': image_url,
+                    'positive': 0,
+                    'negative': 0,
+                    'neutral': 0
+                }
+            emotion_distribution[name][emotion.lower()] = count
+
+        return jsonify(emotion_distribution)
+
+    except Exception as e:
+        print("Error fetching emotion distribution:", e)
+        return jsonify({"error": "Failed to fetch emotion distribution"}), 500
+
+@app.route('/api/articles/emotion-distribution/source/<int:source_id>', methods=['GET'])
+def get_emotion_distribution_for_source(source_id):
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        query = """
+            SELECT a.emotion, COUNT(*)
+            FROM articles AS a
+            WHERE a.source = %s
+        """
+        params = [source_id]
+
+        if start_date:
+            query += " AND DATE(a.published_date) >= %s"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND DATE(a.published_date) <= %s"
+            params.append(end_date)
+
+        query += " GROUP BY a.emotion"
+
+        print("Executing query:", query)
+        print("With parameters:", params)
+
+        cur = g.db_cursor
+        cur.execute(query, tuple(params))
+        results = cur.fetchall()
+
+        print("Query results:", results)
+
+        emotion_distribution = {'positive': 0, 'negative': 0, 'neutral': 0}
+        for emotion, count in results:
+            emotion_distribution[emotion.lower()] = count
+
+        return jsonify(emotion_distribution)
+
+    except Exception as e:
+        print("Error fetching emotion distribution for source:", e)
+        return jsonify({"error": "Failed to fetch emotion distribution for source"}), 500
+

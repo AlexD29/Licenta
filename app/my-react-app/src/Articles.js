@@ -3,7 +3,8 @@ import axios from 'axios';
 import { Link, useParams } from 'react-router-dom';
 import './Articles.css';
 import Footer from './Footer';
-import TodayPiechart from './charts/TodayPiechart'; 
+import ArticlesTodayEmotionsPiechart from 'charts/ArticlesTodayEmotionsPiechart';
+import SimpleEmotionChart from 'charts/EmotionDistributionBySource';
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -185,7 +186,7 @@ function Articles() {
                   )}
             </div>
             <div className="home-right-side">
-              <TodayPiechart />
+              <ArticlesTodayEmotionsPiechart />
             </div>
         </div>
         <div className="home-second-part">

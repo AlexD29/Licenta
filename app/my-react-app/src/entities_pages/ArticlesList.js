@@ -8,7 +8,7 @@ const ArticlesList = ({ entity_id, entity_type, currentPage }) => {
   const [totalArticles, setTotalArticles] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const articlesPerPage = 5;
+  const articlesPerPage = 15;
 
   const fetchArticles = async (page) => {
     setLoading(true);
@@ -85,13 +85,15 @@ const ArticlesList = ({ entity_id, entity_type, currentPage }) => {
                   {formatDate(article.published_date)}
                 </p>
               </div>
-              <div className="article-source-image-minimized">
-                <img
-                  src={article.source_image_url}
-                  alt={article.source_name}
-                  className="source-icon-minimized"
-                />
-              </div>
+              {entity_type !== 'source' && (
+                <div className="article-source-image-minimized">
+                  <img
+                    src={article.source_image_url}
+                    alt={article.source_name}
+                    className="source-icon-minimized"
+                  />
+                </div>
+              )}
             </div>
           </Link>
         ))}

@@ -184,11 +184,11 @@ const PoliticianPage = ({ userId }) => {
                       {politician.isFavorite ? "Nu mai urmări" : "Urmarește"}
                     </button>
                   </div>
-                </div>
-                <div className="politician-description">
-                  <h3>Despre</h3>
-                  <p>{politician.description}</p>
-                </div>
+              </div>
+              <div className="politician-description">
+                <h3>Despre</h3>
+                <p>{politician.description}</p>
+              </div>
             </div>
           </div>
         </div>

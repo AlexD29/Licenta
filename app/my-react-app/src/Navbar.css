@@ -1,9 +1,11 @@
 .navbar {
   display: flex;
   align-items: center;
-  padding: 0.25rem 1rem 0.25rem 1rem;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
   background-color: #04248c;
   color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
   position: relative;
 }
 
