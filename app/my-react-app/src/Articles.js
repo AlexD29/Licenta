@@ -4,7 +4,6 @@ import { Link, useParams } from 'react-router-dom';
 import './Articles.css';
 import Footer from './Footer';
 import ArticlesTodayEmotionsPiechart from 'charts/ArticlesTodayEmotionsPiechart';
-import SimpleEmotionChart from 'charts/EmotionDistributionBySource';
 
 function formatDate(dateString) {
   const date = new Date(dateString);

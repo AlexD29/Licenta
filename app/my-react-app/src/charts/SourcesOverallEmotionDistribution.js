@@ -3,7 +3,7 @@ import axios from 'axios';
 import ReactEcharts from 'echarts-for-react';
 import { useNavigate } from 'react-router-dom';
 
-function SimpleEmotionChart() {
+function SourcesOverallEmotionDistribution() {
   const [chartData, setChartData] = useState({
     sources: [],
     series: [],
@@ -137,12 +137,12 @@ function SimpleEmotionChart() {
   };
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className='chart' style={{ textAlign: 'center' }}>
       {imagesLoaded ? (
         <ReactEcharts
           option={getOption()}
           onEvents={onEvents}
-          style={{ height: 400, width: '100%' }}
+          style={{ height: 600, width: '100%' }}
         />
       ) : (
         <p>Loading...</p>
@@ -151,4 +151,4 @@ function SimpleEmotionChart() {
   );
 }
 
-export default SimpleEmotionChart;
+export default SourcesOverallEmotionDistribution;

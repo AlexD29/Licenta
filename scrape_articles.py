@@ -237,6 +237,8 @@ def filter_and_normalize_tag(tag):
     tag = tag.lower()
     tag = tag.translate(str.maketrans('ăâîșț', 'aaist'))
     tag = unicodedata.normalize('NFKD', tag).encode('ASCII', 'ignore').decode('utf-8')
+    tag = re.sub(r'[^a-zA-Z0-9\s]', '', tag)  # Remove special characters
+    tag = tag.strip()  # Remove any leading/trailing whitespace
     return tag
 
 def match_tags_to_entities(tags, article_id, published_date, cur, conn):
@@ -313,6 +315,7 @@ def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, pub
         RETURNING id
     """, (article_id, tag))
     tag_id = cur.fetchone()[0]
+
 
     if not result:
         if table_name == "politicians":
@@ -2075,8 +2078,9 @@ def scrape_antena3():
    
 # source_scrapers = [scrape_gandul]
 source_scrapers = [scrape_ziaredotcom, scrape_adevarul, scrape_stiripesurse, scrape_digi24, 
-                   scrape_protv, scrape_observator, scrape_hotnews, scrape_gandul, scrape_bursa, scrape_antena3, scrape_mediafax]
+                   scrape_protv, scrape_observator,  scrape_gandul, scrape_bursa, scrape_antena3, scrape_mediafax]
 
+#scrape_hotnews, - nu mai merge
 #scrape_mediafax() # - are o problema la schimbarea paginii + aparent are problema ca la un moment dat zice ca date
 # element e None....
 

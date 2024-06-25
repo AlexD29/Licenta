@@ -43,10 +43,12 @@ def insert_cities_from_excel_to_db():
     cities_df = pd.read_excel(excel_file, sheet_name='Cities')
     cursor = conn.cursor()
     for index, row in cities_df.iterrows():
-        values = (row['Name'], row['Description'], row['Image URL'], row['Mayor'])
-        cursor.execute('''INSERT INTO cities (name, description, image_url, mayor)
+        values = (row['Name'], row['Description'], row['Image URL'], row['Population'])
+        cursor.execute('''INSERT INTO cities (name, description, image_url, population)
                             VALUES (%s, %s, %s, %s)''', values)
     conn.commit()
     print("Data inserted successfully.")
 
 #insert_politicians_from_excel_to_db()
+
+insert_cities_from_excel_to_db()

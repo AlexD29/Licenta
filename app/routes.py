@@ -210,6 +210,8 @@ def politician_articles():
         """)
         politicians = cur.fetchall()
 
+        random.shuffle(politicians)
+
         politician_articles_data = []
 
         for politician in politicians:
@@ -374,6 +376,8 @@ def political_parties_articles():
         """)
         political_parties = cur.fetchall()
 
+        random.shuffle(political_parties)
+
         political_parties_articles_data = []
 
         for party in political_parties:
@@ -456,6 +460,8 @@ def cities_articles():
             FROM cities
         """)
         cities = cur.fetchall()
+
+        random.shuffle(cities)
 
         cities_articles_data = []
 
@@ -540,6 +546,8 @@ def sources_articles():
         """)
         sources = cur.fetchall()
 
+        random.shuffle(sources)
+
         sources_articles_data = []
 
         for source in sources:
@@ -606,6 +614,9 @@ def sources_articles():
         print("Error fetching sources articles:", e)
         return jsonify({"error": "Failed to fetch sources articles"}), 500
 
+from datetime import datetime, timedelta
+from flask import jsonify
+
 @app.route('/api/explore', methods=['GET'])
 def explore_data():
     try:
@@ -614,22 +625,17 @@ def explore_data():
         # Determine the start of the week (last Monday)
         today = datetime.today()
         last_monday = today - timedelta(days=today.weekday())
-
-        # Prepare the date range for the current week
         date_range_start = last_monday
         date_range_end = today
 
         # Fetch top 3 politicians based on tag appearances this week
         cur.execute("""
-            SELECT p.id, p.first_name, p.last_name, p.city, p.position, p.image_url, p.date_of_birth, COUNT(t.id) AS tag_count
+            SELECT p.id, p.first_name, p.last_name, p.city, p.position, p.image_url, p.date_of_birth, COUNT(DISTINCT t.article_id) AS tag_count
             FROM politicians p
             JOIN tag_politician tp ON p.id = tp.politician_id
             JOIN tags t ON tp.tag_id = t.id
-            WHERE EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements_text(t.timestamps) AS elem
-                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
-            )
+            JOIN articles a ON t.article_id = a.id
+            WHERE a.published_date >= %s AND a.published_date <= %s
             GROUP BY p.id
             ORDER BY tag_count DESC
             LIMIT 3
@@ -639,10 +645,10 @@ def explore_data():
         politician_data = []
         for politician in top_politicians:
             cur.execute("""
-                SELECT tag_text
-                FROM tag_politician
-                JOIN tags ON tag_politician.tag_id = tags.id
-                WHERE politician_id = %s
+                SELECT DISTINCT t.tag_text
+                FROM tag_politician tp
+                JOIN tags t ON tp.tag_id = t.id
+                WHERE tp.politician_id = %s
             """, (politician[0],))
             tags = [tag[0] for tag in cur.fetchall()]
             politician_dict = {
@@ -659,15 +665,12 @@ def explore_data():
 
         # Fetch top 3 cities based on tag appearances this week
         cur.execute("""
-            SELECT c.id, c.name, c.description, c.image_url, c.candidates_for_mayor, c.mayor_id, COUNT(t.id) AS tag_count
+            SELECT c.id, c.name, c.description, c.image_url, c.candidates_for_mayor, c.mayor_id, COUNT(DISTINCT t.article_id) AS tag_count
             FROM cities c
             JOIN tag_city tc ON c.id = tc.city_id
             JOIN tags t ON tc.tag_id = t.id
-            WHERE EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements_text(t.timestamps) AS elem
-                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
-            )
+            JOIN articles a ON t.article_id = a.id
+            WHERE a.published_date >= %s AND a.published_date <= %s
             GROUP BY c.id
             ORDER BY tag_count DESC
             LIMIT 3
@@ -677,10 +680,10 @@ def explore_data():
         city_data = []
         for city in top_cities:
             cur.execute("""
-                SELECT tag_text
-                FROM tag_city
-                JOIN tags ON tag_city.tag_id = tags.id
-                WHERE city_id = %s
+                SELECT DISTINCT t.tag_text
+                FROM tag_city tc
+                JOIN tags t ON tc.tag_id = t.id
+                WHERE tc.city_id = %s
             """, (city[0],))
             tags = [tag[0] for tag in cur.fetchall()]
             city_dict = {
@@ -696,15 +699,12 @@ def explore_data():
 
         # Fetch top 3 political parties based on tag appearances this week
         cur.execute("""
-            SELECT pp.id, pp.abbreviation, pp.full_name, pp.description, pp.image_url, COUNT(t.id) AS tag_count
+            SELECT pp.id, pp.abbreviation, pp.full_name, pp.description, pp.image_url, COUNT(DISTINCT t.article_id) AS tag_count
             FROM political_parties pp
             JOIN tag_political_parties tpp ON pp.id = tpp.political_party_id
             JOIN tags t ON tpp.tag_id = t.id
-            WHERE EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements_text(t.timestamps) AS elem
-                WHERE elem::timestamp >= %s AND elem::timestamp <= %s
-            )
+            JOIN articles a ON t.article_id = a.id
+            WHERE a.published_date >= %s AND a.published_date <= %s
             GROUP BY pp.id
             ORDER BY tag_count DESC
             LIMIT 3
@@ -714,10 +714,10 @@ def explore_data():
         party_data = []
         for party in top_parties:
             cur.execute("""
-                SELECT tag_text
-                FROM tag_political_parties
-                JOIN tags ON tag_political_parties.tag_id = tags.id
-                WHERE political_party_id = %s
+                SELECT DISTINCT t.tag_text
+                FROM tag_political_parties tpp
+                JOIN tags t ON tpp.tag_id = t.id
+                WHERE tpp.political_party_id = %s
             """, (party[0],))
             tags = [tag[0] for tag in cur.fetchall()]
             party_dict = {
@@ -732,14 +732,14 @@ def explore_data():
 
         # Fetch top 3 sources based on articles published this week
         cur.execute("""
-            SELECT s.id, s.name, s.image_url, COUNT(a.id) AS article_count
+            SELECT s.id, s.name, s.image_url, COUNT(DISTINCT a.id) AS article_count
             FROM sources s
             JOIN articles a ON s.id = a.source
-            WHERE a.published_date >= %s
+            WHERE a.published_date >= %s AND a.published_date <= %s
             GROUP BY s.id
             ORDER BY article_count DESC
             LIMIT 3
-        """, (date_range_start,))
+        """, (date_range_start, date_range_end))
         top_sources = cur.fetchall()
 
         source_data = []
@@ -761,6 +761,7 @@ def explore_data():
     except Exception as e:
         print("Error fetching explore data:", e)
         return jsonify({"error": "Failed to fetch explore data"}), 500
+
 
 @app.route('/api/politicians', methods=['GET'])
 def politicians_data():
@@ -1495,7 +1496,6 @@ def search():
         "cities": query_cities(query),
         "elections": query_elections(query),
         "sources": query_sources(query),
-        "articles": query_articles(query)
     }
 
     # Combine all entities into a single list
@@ -1504,9 +1504,16 @@ def search():
         if results[category]:
             entities.extend(results[category])
 
-    # Add articles to entities if there's space
-    if results["articles"]:
-        entities.extend(results["articles"])
+    # Check if sources are present
+    if results["sources"]:
+        for source in results["sources"]:
+            articles = query_articles_by_source(source["name"])
+            if articles:
+                entities.extend(articles)
+    else:
+        articles = query_articles(query)
+        if articles:
+            entities.extend(articles)
 
     total_results = len(entities)
 
@@ -1527,7 +1534,7 @@ def search():
 
     return jsonify(response)
 
- 
+
 
 ### ENTITIES PAGES ###
 
@@ -1560,9 +1567,39 @@ def get_politician(id):
             politician_dict['age'] = age
 
             # Fetch tags associated with the politician
-            cur.execute("SELECT tag_text FROM tag_politician JOIN tags ON tag_politician.tag_id = tags.id WHERE politician_id = %s", (id,))
+            cur.execute("SELECT t.tag_text FROM tag_politician tp JOIN tags t ON tp.tag_id = t.id WHERE tp.politician_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
             politician_dict['tags'] = tags
+
+            if tags:
+                tag_texts_str = "','".join(tags)  # Create a comma-separated string of tag texts
+
+                # Fetch article counts
+                cur.execute(f"""
+                    WITH filtered_articles AS (
+                        SELECT DISTINCT a.id AS article_id, a.emotion
+                        FROM articles a
+                        JOIN tags t ON a.id = t.article_id
+                        WHERE t.tag_text IN ('{tag_texts_str}')
+                    )
+                    SELECT 
+                        COUNT(article_id) AS total_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Positive' THEN article_id END) AS positive_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Negative' THEN article_id END) AS negative_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Neutral' THEN article_id END) AS neutral_articles
+                    FROM filtered_articles
+                """)
+                article_counts = cur.fetchone()
+                
+                politician_dict['total_articles'] = article_counts[0]
+                politician_dict['positive_articles'] = article_counts[1]
+                politician_dict['negative_articles'] = article_counts[2]
+                politician_dict['neutral_articles'] = article_counts[3]
+            else:
+                politician_dict['total_articles'] = 0
+                politician_dict['positive_articles'] = 0
+                politician_dict['negative_articles'] = 0
+                politician_dict['neutral_articles'] = 0
             
             # Check if the entity is a favorite
             if user_id:
@@ -1600,9 +1637,39 @@ def get_political_party(id):
             party_dict = dict(zip([desc[0] for desc in cur.description], party))
             
             # Fetch tags associated with the political party
-            cur.execute("SELECT tag_text FROM tag_political_parties JOIN tags ON tag_political_parties.tag_id = tags.id WHERE political_party_id = %s", (id,))
+            cur.execute("SELECT t.tag_text FROM tag_political_parties tpp JOIN tags t ON tpp.tag_id = t.id WHERE tpp.political_party_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
             party_dict['tags'] = tags
+
+            if tags:
+                tag_texts_str = "','".join(tags)  # Create a comma-separated string of tag texts
+
+                # Fetch article counts
+                cur.execute(f"""
+                    WITH filtered_articles AS (
+                        SELECT DISTINCT a.id AS article_id, a.emotion
+                        FROM articles a
+                        JOIN tags t ON a.id = t.article_id
+                        WHERE t.tag_text IN ('{tag_texts_str}')
+                    )
+                    SELECT 
+                        COUNT(article_id) AS total_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Positive' THEN article_id END) AS positive_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Negative' THEN article_id END) AS negative_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Neutral' THEN article_id END) AS neutral_articles
+                    FROM filtered_articles
+                """)
+                article_counts = cur.fetchone()
+                
+                party_dict['total_articles'] = article_counts[0]
+                party_dict['positive_articles'] = article_counts[1]
+                party_dict['negative_articles'] = article_counts[2]
+                party_dict['neutral_articles'] = article_counts[3]
+            else:
+                party_dict['total_articles'] = 0
+                party_dict['positive_articles'] = 0
+                party_dict['negative_articles'] = 0
+                party_dict['neutral_articles'] = 0
             
             # Check if the entity is a favorite
             if user_id:
@@ -1647,18 +1714,48 @@ def get_city(id):
                     FROM politicians
                     WHERE id = %s
                 """, (mayor_id,))
-                mayor_id = cur.fetchone()
-                if mayor_id:
+                mayor = cur.fetchone()
+                if mayor:
                     mayor_dict = {
-                        'id': mayor_id[0],
-                        'name': f"{mayor_id[1]} {mayor_id[2]}",
-                        'image_url': mayor_id[3]
+                        'id': mayor[0],
+                        'name': f"{mayor[1]} {mayor[2]}",
+                        'image_url': mayor[3]
                     }
                     city_dict['mayor'] = mayor_dict
 
-            cur.execute("SELECT tag_text FROM tag_city JOIN tags ON tag_city.tag_id = tags.id WHERE city_id = %s", (id,))
+            cur.execute("SELECT t.tag_text FROM tag_city tc JOIN tags t ON tc.tag_id = t.id WHERE tc.city_id = %s", (id,))
             tags = [tag[0] for tag in cur.fetchall()]
             city_dict['tags'] = tags
+            
+            if tags:
+                tag_texts_str = "','".join(tags)  # Create a comma-separated string of tag texts
+
+                # Fetch article counts
+                cur.execute(f"""
+                    WITH filtered_articles AS (
+                        SELECT DISTINCT a.id AS article_id, a.emotion
+                        FROM articles a
+                        JOIN tags t ON a.id = t.article_id
+                        WHERE t.tag_text IN ('{tag_texts_str}')
+                    )
+                    SELECT 
+                        COUNT(article_id) AS total_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Positive' THEN article_id END) AS positive_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Negative' THEN article_id END) AS negative_articles,
+                        COUNT(DISTINCT CASE WHEN emotion = 'Neutral' THEN article_id END) AS neutral_articles
+                    FROM filtered_articles
+                """)
+                article_counts = cur.fetchone()
+                
+                city_dict['total_articles'] = article_counts[0]
+                city_dict['positive_articles'] = article_counts[1]
+                city_dict['negative_articles'] = article_counts[2]
+                city_dict['neutral_articles'] = article_counts[3]
+            else:
+                city_dict['total_articles'] = 0
+                city_dict['positive_articles'] = 0
+                city_dict['negative_articles'] = 0
+                city_dict['neutral_articles'] = 0
             
             if user_id:
                 cur.execute("SELECT 1 FROM favorites WHERE user_id = %s AND entity_id = %s AND entity_type = 'city'", (user_id, id))
@@ -1673,21 +1770,61 @@ def get_city(id):
     except Exception as e:
         print("Error fetching city:", e)
         return jsonify({"error": "Failed to fetch city data"}), 500
-   
+
 @app.route('/api/source/<int:id>', methods=['GET'])
 def get_source(id):
     try:
         cur = g.db_cursor
+
+        # Fetch source details
         cur.execute("SELECT * FROM sources WHERE id = %s", (id,))
         source = cur.fetchone()
-        if source:
-            source_dict = dict(zip([desc[0] for desc in cur.description], source))
-            return jsonify(source_dict)
-        else:
+
+        if not source:
             return jsonify({"error": "Source not found"}), 404
+
+        source_dict = dict(zip([desc[0] for desc in cur.description], source))
+
+        # Fetch total number of articles for the source
+        cur.execute("""
+            SELECT COUNT(*) AS total_articles
+            FROM articles
+            WHERE source = %s
+        """, (id,))
+        total_articles_result = cur.fetchone()
+        total_articles = total_articles_result[0] if total_articles_result else 0
+
+        source_dict['total_articles'] = total_articles
+
+        # Fetch counts of positive, negative, and neutral articles for the source
+        cur.execute("""
+            SELECT
+                SUM(CASE WHEN emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_articles,
+                SUM(CASE WHEN emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_articles,
+                SUM(CASE WHEN emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_articles
+            FROM articles
+            WHERE source = %s
+        """, (id,))
+        emotion_counts = cur.fetchone()
+
+        if emotion_counts:
+            source_dict['positive_articles'] = emotion_counts[0] if emotion_counts[0] else 0
+            source_dict['negative_articles'] = emotion_counts[1] if emotion_counts[1] else 0
+            source_dict['neutral_articles'] = emotion_counts[2] if emotion_counts[2] else 0
+        else:
+            source_dict['positive_articles'] = 0
+            source_dict['negative_articles'] = 0
+            source_dict['neutral_articles'] = 0
+
+        return jsonify(source_dict)
+
+    except psycopg2.Error as e:
+        print("Error fetching source details:", e)
+        return jsonify({"error": "Failed to fetch source details"}), 500
+
     except Exception as e:
-        print("Error fetching source:", e)
-        return jsonify({"error": "Failed to fetch source data"}), 500
+        print("Unexpected error:", e)
+        return jsonify({"error": "Unexpected error occurred"}), 500
 
 @app.route('/api/articles/<entity_type>/<int:entity_id>', methods=['GET'])
 def get_articles_by_entity(entity_type, entity_id):
@@ -2003,6 +2140,9 @@ def get_emotion_distribution():
         print("Error fetching emotion distribution:", e)
         return jsonify({"error": "Failed to fetch emotion distribution"}), 500
 
+
+### SOURCE CHARTS ###
+
 @app.route('/api/articles/emotion-distribution/source/<int:source_id>', methods=['GET'])
 def get_emotion_distribution_for_source(source_id):
     try:
@@ -2025,15 +2165,9 @@ def get_emotion_distribution_for_source(source_id):
             params.append(end_date)
 
         query += " GROUP BY a.emotion"
-
-        print("Executing query:", query)
-        print("With parameters:", params)
-
         cur = g.db_cursor
         cur.execute(query, tuple(params))
         results = cur.fetchall()
-
-        print("Query results:", results)
 
         emotion_distribution = {'positive': 0, 'negative': 0, 'neutral': 0}
         for emotion, count in results:
@@ -2044,4 +2178,250 @@ def get_emotion_distribution_for_source(source_id):
     except Exception as e:
         print("Error fetching emotion distribution for source:", e)
         return jsonify({"error": "Failed to fetch emotion distribution for source"}), 500
+
+@app.route('/api/articles/emotion-distribution-over-time/source/<int:source_id>', methods=['GET'])
+def get_emotion_distribution_for_source_over_time(source_id):
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        query = """
+            SELECT DATE(a.published_date) as date, a.emotion, COUNT(*) as count
+            FROM articles AS a
+            WHERE a.source = %s
+        """
+        params = [source_id]
+
+        if start_date:
+            query += " AND DATE(a.published_date) >= %s"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND DATE(a.published_date) <= %s"
+            params.append(end_date)
+
+        query += " GROUP BY DATE(a.published_date), a.emotion"
+        cur = g.db_cursor
+        cur.execute(query, tuple(params))
+        results = cur.fetchall()
+
+        # Process results into a format suitable for the chart
+        emotion_distribution = {}
+        for date, emotion, count in results:
+            if date not in emotion_distribution:
+                emotion_distribution[date] = {'date': date, 'positive': 0, 'negative': 0, 'neutral': 0}
+            emotion_distribution[date][emotion.lower()] = count
+
+        return jsonify(list(emotion_distribution.values()))
+
+    except Exception as e:
+        print("Error fetching emotion distribution for source:", e)
+        return jsonify({"error": "Failed to fetch emotion distribution for source"}), 500
+
+@app.route('/api/articles/hourly-distribution/source/<int:source_id>', methods=['GET'])
+def get_hourly_distribution_for_source(source_id):
+    try:
+        cur = g.db_cursor
+
+        query = """
+            SELECT EXTRACT(HOUR FROM a.published_date) as hour, COUNT(*) as count
+            FROM articles AS a
+            WHERE a.source = %s
+            GROUP BY EXTRACT(HOUR FROM a.published_date)
+        """
+        params = [source_id]
+
+        cur.execute(query, tuple(params))
+        results = cur.fetchall()
+
+        hourly_distribution = [0] * 24
+        for hour, count in results:
+            hourly_distribution[int(hour)] = count
+
+        return jsonify(hourly_distribution)
+
+    except Exception as e:
+        print("Error fetching hourly distribution for source:", e)
+        return jsonify({"error": "Failed to fetch hourly distribution for source"}), 500
+    
+@app.route('/api/articles/counts-today/source/<int:source_id>', methods=['GET'])
+def get_article_counts_for_source_today(source_id):
+    try:
+        today_date = datetime.now().date()
+        cur = g.db_cursor
+        
+        total_query = """
+            SELECT COUNT(*) FROM articles
+            WHERE source = %s AND DATE(published_date) = %s
+        """
+        cur.execute(total_query, (source_id, today_date))
+        total_count = cur.fetchone()[0]
+
+        # Query to get counts by emotion
+        emotion_query = """
+            SELECT emotion, COUNT(*) FROM articles
+            WHERE source = %s AND DATE(published_date) = %s
+            GROUP BY emotion
+        """
+        cur.execute(emotion_query, (source_id, today_date))
+        emotion_counts = cur.fetchall()
+
+        counts = {
+            'total': total_count,
+            'positive': 0,
+            'negative': 0,
+            'neutral': 0
+        }
+        for emotion, count in emotion_counts:
+            counts[emotion.lower()] = count
+
+        return jsonify(counts)
+
+    except Exception as e:
+        print("Error fetching article counts for source:", e)
+        return jsonify({"error": "Failed to fetch article counts for source"}), 500
+
+@app.route('/api/sources/favorite-entities/<int:source_id>', methods=['GET'])
+def get_favorite_entities(source_id):
+    try:
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT entity_id, entity_type, entity_name, image_url, COUNT(DISTINCT article_id) AS total_count
+            FROM (
+                SELECT p.id AS entity_id, 'politician' AS entity_type, CONCAT(p.first_name, ' ', p.last_name) AS entity_name, p.image_url, t.article_id
+                FROM politicians p
+                JOIN tag_politician tp ON p.id = tp.politician_id
+                JOIN tags t ON tp.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+
+                UNION ALL
+
+                SELECT pp.id AS entity_id, 'political-party' AS entity_type, pp.abbreviation AS entity_name, pp.image_url, t.article_id
+                FROM political_parties pp
+                JOIN tag_political_parties tpp ON pp.id = tpp.political_party_id
+                JOIN tags t ON tpp.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+
+                UNION ALL
+
+                SELECT c.id AS entity_id, 'city' AS entity_type, c.name AS entity_name, c.image_url, t.article_id
+                FROM cities c
+                JOIN tag_city tc ON c.id = tc.city_id
+                JOIN tags t ON tc.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+            ) AS entity_counts
+            GROUP BY entity_id, entity_type, entity_name, image_url
+            ORDER BY total_count DESC
+            LIMIT 5
+        """, (source_id, source_id, source_id))
+        
+        top_entities = cur.fetchall()
+
+        # Prepare response
+        response = {
+            'source_id': source_id,
+            'top_entities': [{'entity_id': row[0], 'entity_type': row[1], 'entity_name': row[2], 'image_url': row[3], 'total_count': row[4]} for row in top_entities]
+        }
+
+        return jsonify(response)
+
+    except psycopg2.Error as e:
+        print("Error fetching favorite entities:", e)
+        return jsonify({"error": "Failed to fetch favorite entities"}), 500
+
+@app.route('/api/top-entities/<int:source_id>', methods=['GET'])
+def get_top_entities(source_id):
+    try:
+        cur = g.db_cursor
+
+        # SQL query to retrieve the percentages of positive, negative, and neutral articles for each entity
+        query = """
+            WITH entity_articles AS (
+                SELECT p.id AS entity_id, 'politician' AS entity_type, CONCAT(p.first_name, ' ', p.last_name) AS entity_name,
+                       p.image_url, 
+                       COUNT(a.id) AS total_articles,
+                       SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_articles,
+                       SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_articles,
+                       SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_articles
+                FROM politicians p
+                JOIN tag_politician tp ON p.id = tp.politician_id
+                JOIN tags t ON tp.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+                GROUP BY p.id, p.first_name, p.last_name, p.image_url
+
+                UNION ALL
+
+                SELECT pp.id AS entity_id, 'political-party' AS entity_type, pp.abbreviation AS entity_name,
+                       pp.image_url, 
+                       COUNT(a.id) AS total_articles,
+                       SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_articles,
+                       SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_articles,
+                       SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_articles
+                FROM political_parties pp
+                JOIN tag_political_parties tpp ON pp.id = tpp.political_party_id
+                JOIN tags t ON tpp.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+                GROUP BY pp.id, pp.abbreviation, pp.image_url
+
+                UNION ALL
+
+                SELECT c.id AS entity_id, 'city' AS entity_type, c.name AS entity_name,
+                       c.image_url, 
+                       COUNT(a.id) AS total_articles,
+                       SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_articles,
+                       SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_articles,
+                       SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_articles
+                FROM cities c
+                JOIN tag_city tc ON c.id = tc.city_id
+                JOIN tags t ON tc.tag_id = t.id
+                JOIN articles a ON t.article_id = a.id
+                WHERE a.source = %s
+                GROUP BY c.id, c.name, c.image_url
+            )
+
+            SELECT entity_id, entity_type, entity_name, image_url,
+                   (positive_articles::decimal / total_articles * 100) AS positive_percentage,
+                   (negative_articles::decimal / total_articles * 100) AS negative_percentage,
+                   (neutral_articles::decimal / total_articles * 100) AS neutral_percentage
+            FROM entity_articles
+            WHERE total_articles > 0
+            ORDER BY positive_percentage DESC
+            LIMIT 3
+        """
+
+        cur.execute(query, (source_id, source_id, source_id))
+        rows = cur.fetchall()
+
+        # Prepare response data
+        top_entities = []
+        for row in rows:
+            entity_id, entity_type, entity_name, image_url, positive_percentage, negative_percentage, neutral_percentage = row
+            top_entities.append({
+                'entity_id': entity_id,
+                'entity_type': entity_type,
+                'entity_name': entity_name,
+                'image_url': image_url,
+                'positive_percentage': positive_percentage,
+                'negative_percentage': negative_percentage,
+                'neutral_percentage': neutral_percentage
+            })
+
+        return jsonify({'top_entities': top_entities})
+
+    except psycopg2.Error as e:
+        print("Error fetching top entities:", e)
+        return jsonify({"error": "Failed to fetch top entities"}), 500
+    except Exception as e:
+        print("Unexpected error:", e)
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+
+### POLITICIAN CHARTS ###
+    
 

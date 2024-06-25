@@ -112,6 +112,24 @@ const PoliticalPartyPage = ({ userId }) => {
           </div>
         </div>
       </div>
+      <div className="entity-middle-part">
+          <div className="middle-bar-box">
+            <span>Total articole în 2024</span>
+            <span className="category-value">{political_party.total_articles}</span>
+          </div>
+          <div className="middle-bar-box positive-text">
+            <span>Pozitive</span>
+            <span className="category-value">{political_party.positive_articles}</span>
+          </div>
+          <div className="middle-bar-box negative-text">
+            <span>Negative</span>
+            <span className="category-value">{political_party.negative_articles}</span>
+          </div>
+          <div className="middle-bar-box neutral-text">
+            <span>Neutre</span>
+            <span className="category-value">{political_party.neutral_articles}</span>
+          </div>
+      </div>
       <div className="entity-second-part">
           <div className="first-part"></div>
           <ArticlesList entity_id={id} entity_type="political-party" currentPage={currentPage} />

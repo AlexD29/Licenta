@@ -20,3 +20,6 @@ TODAY:
     - De reparat sursele
     - De extras tag-urile calumea
     - Search-ul pe articole sa caute si pe tag-uri ca de exemplu daca are tag udmr dar nu contine udmr in titlu nu va aparea
+    - cu user_id-ul din session token
+    - sa schimb loading-ul la toate sa arate bine
+    - sa mai tai putin din titluri ca sa nu mai iasa data pe afara

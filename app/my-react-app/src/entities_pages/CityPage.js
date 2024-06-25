@@ -114,7 +114,7 @@ const CityPage = ({ userId }) => {
             </div>
             <div className="info-second-column">
               <div className="second-column-first-row">
-                <div className="entity-big-text">{city.description}</div>
+                <div className="entity-big-text"></div>
                 <div className="profile-button-div-political-party">
                   <button
                     className={`follow-button-profile ${
@@ -134,6 +134,24 @@ const CityPage = ({ userId }) => {
             </div>
           </div>
         </div>
+      </div>
+      <div className="entity-middle-part">
+          <div className="middle-bar-box">
+            <span>Total articole în 2024</span>
+            <span className="category-value">{city.total_articles}</span>
+          </div>
+          <div className="middle-bar-box positive-text">
+            <span>Pozitive</span>
+            <span className="category-value">{city.positive_articles}</span>
+          </div>
+          <div className="middle-bar-box negative-text">
+            <span>Negative</span>
+            <span className="category-value">{city.negative_articles}</span>
+          </div>
+          <div className="middle-bar-box neutral-text">
+            <span>Neutre</span>
+            <span className="category-value">{city.neutral_articles}</span>
+          </div>
       </div>
       <div className="entity-second-part">
         <div className="first-part"></div>

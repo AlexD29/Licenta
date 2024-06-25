@@ -24,6 +24,7 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 20px;
+    transform: none !important;
 }
 
 .entity-image {

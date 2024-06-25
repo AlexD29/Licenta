@@ -4,7 +4,13 @@ import axios from "axios";
 import "./EntityPage.css";
 import Footer from "../Footer";
 import ArticlesList from "./ArticlesList";
-import SourceOverallEmotionsPieChart from "charts/SourceOverallEmotionsPieChart";
+import SourceOverallEmotionsPieChart from "charts/Source/OverallEmotionsPieChart";
+import SourceEmotionDistributionOverTimeChart from "charts/Source/EmotionDistributionOverTimeChart";
+import SourceHourlyDistributionChart from "charts/Source/HourlyDistributionChart";
+import SourceArticlesCountsWaterfallChart from "charts/Source/ArticlesCountsWaterfallChart";
+import SourceFavoriteEntitiesChart from "charts/Source/FavoriteEntitiesChart";
+import TopPositiveEntitiesChart from "charts/Source/TopPositiveEntitiesChart";
+import TopNegativeEntities from "charts/Source/TopNegativeEntitiesChart";
 
 function formatFoundedDateToRomanian(inputDate) {
   const months = [
@@ -65,6 +71,7 @@ const SourcePage = ({ userId }) => {
     fetchSource();
   }, [userId, id]);
 
+  console.log(source);
   if (!source) return <div>Loading...</div>;
 
   return (
@@ -146,19 +153,45 @@ const SourcePage = ({ userId }) => {
           </div>
         </div>
       </div>
+      <div className="entity-middle-part">
+          <div className="middle-bar-box">
+            <span>Total articole în 2024</span>
+            <span className="category-value">{source.total_articles}</span>
+          </div>
+          <div className="middle-bar-box positive-text">
+            <span>Pozitive</span>
+            <span className="category-value">{source.positive_articles}</span>
+          </div>
+          <div className="middle-bar-box negative-text">
+            <span>Negative</span>
+            <span className="category-value">{source.negative_articles}</span>
+          </div>
+          <div className="middle-bar-box neutral-text">
+            <span>Neutre</span>
+            <span className="category-value">{source.neutral_articles}</span>
+          </div>
+      </div>
       <div className="entity-second-part">
         <div className="first-part">
+          <TopNegativeEntities sourceId={id} />
+          <SourceFavoriteEntitiesChart sourceId={id} />
           <SourceOverallEmotionsPieChart
             sourceId={id}
             startDate={startDate}
             endDate={endDate}
           />
+          <SourceArticlesCountsWaterfallChart sourceId={id} />
         </div>
         <ArticlesList
           entity_id={id}
           entity_type="source"
           currentPage={currentPage}
         />
+        <div className="third-part">
+          <TopPositiveEntitiesChart sourceId={id} />
+          <SourceEmotionDistributionOverTimeChart sourceId={id} />
+          <SourceHourlyDistributionChart sourceId={id} />
+        </div>
       </div>
       <Footer />
     </div>

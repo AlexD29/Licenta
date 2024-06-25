@@ -1,0 +1,72 @@
+/*TOP CHARTS*/
+
+.top-entities-container {
+  text-align: center;
+  margin-bottom: 3rem;
+  width: 90%;
+  border: 1.5px solid rgba(0, 0, 0, 0.1); /* Soft black border */
+  border-radius: 10px;
+  background: linear-gradient(to right, #27c227, green); 
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.4); /* Soft shadow */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+  .negative-chart{
+    background: linear-gradient(to right, #fd2929, red);
+  }
+
+  .top-3-text{  
+    color:white;
+  }
+  
+  .top-entities-cards {
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: 0 0 10px 10px;
+    padding: 1.3rem;
+  }
+  
+  .top-entity-card {
+    display: flex;
+    flex-direction: row;
+    cursor: pointer;
+    text-align: center;
+    transition: transform 0.2s;
+    color: black;
+    height: 4rem;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .top-entity-card:last-child{
+    margin-bottom: 0;
+  }
+  
+  .entity-card:hover {
+    transform: scale(1.05);
+  }
+  
+  .top-entity-card img {
+    width: 5rem;
+    height: 4rem;
+    object-fit: cover;
+  }
+  
+  .top-entity-card h3 {
+    margin: 10px 0;
+  }
+  
+.articles-number-div{
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.number-of-articles-text{
+    margin-right: 0.5rem;
+    font-size: larger;
+}

@@ -66,6 +66,47 @@ def query_articles(query):
 
     return article_suggestions
 
+def query_articles_by_source(source_name):
+    normalized_source_name = normalize_string(source_name).lower()
+
+    # Find the source matching the given name
+    source = db.session.query(Source).filter(
+        func.unaccent(func.lower(Source.name)) == normalized_source_name
+    ).first()
+
+    if not source:
+        return []
+
+    # Retrieve articles associated with the found source, ordered by published date
+    articles = (
+        db.session.query(Article, Source)
+        .join(Source, Article.source == Source.id)
+        .filter(Article.source == source.id)
+        .order_by(desc(Article.published_date))
+        .all()
+    )
+
+    article_suggestions = []
+    for article, source in articles:
+        article_dict = {
+            "id": article.id,
+            "title": article.title,
+            "url": article.url,
+            "author": article.author,
+            "published_date": article.published_date,
+            "number_of_views": article.number_of_views,
+            "image_url": article.image_url,
+            "source": {
+                "name": source.name,
+                "image_url": source.image_url
+            },
+            "emotion": article.emotion,
+            "category": "Article"
+        }
+        article_suggestions.append(article_dict)
+
+    return article_suggestions
+
 def query_politicians(query):
     normalized_query = normalize_string(query).lower()
     query_parts = normalized_query.split()

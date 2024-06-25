@@ -166,7 +166,7 @@ const MyInterests = ({ userId }) => {
           }`}
         >
           <div>
-            <h2>Favorite</h2>
+            <h2 className="favorites-text">Favorite</h2>
           </div>
           <div>
             {hasFavorites ? (

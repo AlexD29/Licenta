@@ -58,7 +58,7 @@ function ArticlesTodayEmotionsPiechart() {
   });
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className='chart' style={{ textAlign: 'center' }}>
       <ReactEcharts option={getOption()} style={{ height: 450, width: 450 }} />
     </div>
   );

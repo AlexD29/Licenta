@@ -192,12 +192,30 @@ const PoliticianPage = ({ userId }) => {
             </div>
           </div>
         </div>
-        </div>
-        <div className="entity-second-part">
-          <div className="first-part"></div>
-          <ArticlesList entity_id={id} entity_type="politician" currentPage={currentPage} />
-        </div>
-        <Footer/>
+      </div>
+      <div className="entity-middle-part">
+          <div className="middle-bar-box">
+            <span>Total articole în 2024</span>
+            <span className="category-value">{politician.total_articles}</span>
+          </div>
+          <div className="middle-bar-box positive-text">
+            <span>Pozitive</span>
+            <span className="category-value">{politician.positive_articles}</span>
+          </div>
+          <div className="middle-bar-box negative-text">
+            <span>Negative</span>
+            <span className="category-value">{politician.negative_articles}</span>
+          </div>
+          <div className="middle-bar-box neutral-text">
+            <span>Neutre</span>
+            <span className="category-value">{politician.neutral_articles}</span>
+          </div>
+      </div>
+      <div className="entity-second-part">
+        <div className="first-part"></div>
+        <ArticlesList entity_id={id} entity_type="politician" currentPage={currentPage} />
+      </div>
+      <Footer/>
     </div>
   );
 };

@@ -31,6 +31,7 @@ const Explore = () => {
         );
       }
 
+
     if (!data) {
         return <div>Cannot explore now.</div>;
     }

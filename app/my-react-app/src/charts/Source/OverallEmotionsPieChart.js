@@ -17,7 +17,6 @@ function SourceOverallEmotionsPieChart({ sourceId, startDate, endDate }) {
           end_date: endDate,
         },
       });
-      console.log('Fetched data:', response.data);
       setChartData(response.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -62,7 +61,7 @@ function SourceOverallEmotionsPieChart({ sourceId, startDate, endDate }) {
   });
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className='chart' style={{ textAlign: 'center' }}>
       <ReactEcharts
         option={getOption()}
         style={{ height: 400, width: '100%' }}
