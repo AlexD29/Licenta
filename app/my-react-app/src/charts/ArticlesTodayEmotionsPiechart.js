@@ -4,25 +4,27 @@ import ReactEcharts from 'echarts-for-react';
 
 function ArticlesTodayEmotionsPiechart() {
   const [emotionsData, setEmotionsData] = useState([]);
+  const [totalArticles, setTotalArticles] = useState(0);
 
   useEffect(() => {
     const fetchEmotionsData = async () => {
       try {
         const response = await axios.get('http://localhost:8000/api/articles/today');
-        const articles = response.data.articles;
+        const { total_articles, positive_articles, negative_articles, neutral_articles } = response.data;
 
-        const emotionsCount = articles.reduce((acc, article) => {
-          acc[article.emotion] = (acc[article.emotion] || 0) + 1;
-          return acc;
-        }, {});
+        setTotalArticles(total_articles);
 
-        const totalEmotions = Object.values(emotionsCount).reduce((acc, count) => acc + count, 0);
+        const emotionsCount = {
+          Positive: positive_articles,
+          Negative: negative_articles,
+          Neutral: neutral_articles
+        };
 
-        const colors = ['#18b52a', '#ff1100', '#597499' ];
+        const colors = ['#18b52a', '#ff1100', '#597499'];
         const emotionsWithPercentages = Object.keys(emotionsCount).map((emotion, index) => ({
           name: emotion,
           value: emotionsCount[emotion],
-          itemStyle: { color: colors[index] },
+          itemStyle: { color: colors[index] }
         }));
 
         setEmotionsData(emotionsWithPercentages);
@@ -36,12 +38,12 @@ function ArticlesTodayEmotionsPiechart() {
 
   const getOption = () => ({
     title: {
-      text: 'Emoțiile din articolele de astăzi',
-      left: 'center',
+      text: `Article postate astăzi: ${totalArticles}`,
+      left: 'center'
     },
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b} : {c} ({d}%)',
+      formatter: '{a} <br/>{b} : {c} ({d}%)'
     },
     series: [
       {
@@ -51,10 +53,10 @@ function ArticlesTodayEmotionsPiechart() {
         center: ['50%', '50%'],
         data: emotionsData,
         label: {
-          formatter: '{b}: {d}%',
-        },
-      },
-    ],
+          formatter: '{b}'
+        }
+      }
+    ]
   });
 
   return (

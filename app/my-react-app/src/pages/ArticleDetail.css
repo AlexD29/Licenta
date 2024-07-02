@@ -1,7 +1,11 @@
+.main-container-article-details{
+  display: flex;
+  flex-direction: row;
+}
+
 .article-container {
-    max-width: 50%; /* Set maximum width */
-    margin: 0 auto; /* Center the container */
-    padding: 2% 5%; /* Add padding */
+    max-width: 35%;
+    margin: 1rem 1.25% 0 1.25%;
   }
   
   .article-title {

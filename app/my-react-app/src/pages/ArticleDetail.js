@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useParams, Link } from 'react-router-dom';
 import './ArticleDetail.css';
 import Footer from 'D:/Documents/Facultate/Licenta/app/my-react-app/src/Footer';
+import SourceArticlesCountsWaterfallChart from 'charts/Source/ArticlesCountsWaterfallChart';
+import ArticlesLastWeekChart from 'charts/Politician/ArticlesLastWeekChart';
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -82,43 +84,51 @@ function ArticleDetail() {
   }
 
   return (
-    <div className='main-container'>
-      <div className="article-container">
-        <h1 className="article-title">{article.title}</h1>
-        <div className="article-big-image-div">
-            <img src={article.image_url} alt="Article" className="article-big-image" />
+    <div>
+      <div className='main-container-article-details'>
+        <div className='first-part'>
+          <SourceArticlesCountsWaterfallChart sourceId={9}/>
         </div>
-        <div className="article-info">
-          <p><strong>Autor:</strong> {article.author}</p>
-          <p><strong>Data publicării:</strong> {formatDate(article.published_date)}</p>
-          <p><strong>{getNumberOfViews(article)}</strong></p>
-          <p><strong>{getNumberOfComments(article)}</strong></p>
-        </div>
-        <div className="article-content">
-          <p>
-            {article.article_text && Array.isArray(article.article_text) ?
-              article.article_text.map(paragraph => paragraph.split(/\s+/)).flat().slice(0, maxWords).join(' ') :
-              "Article text not available"
-            }
-            {article.article_text && Array.isArray(article.article_text) && article.article_text.flatMap(paragraph => paragraph.split(/\s+/)).length > maxWords && '...'}
-            <span className="fade-out"></span>
-          </p>
-        </div>
-        <a href={article.url} className="full-article-button" target="_blank" rel="noopener noreferrer">Articolul Complet</a>
-        <div className='article-info'>
-          <div className="tag-list">
-            {article.tags.map((tag, index) => (
-              <Link key={index} to={`/tags/${tag}`} className="tag-link">{tag}</Link>
-            ))}
+        <div className="article-container">
+          <h1 className="article-title">{article.title}</h1>
+          <div className="article-big-image-div">
+              <img src={article.image_url} alt="Article" className="article-big-image" />
           </div>
-          <div className="first-article-source-image">
-            <img src={article.source_image_url} alt={article.source_name} className="source-icon" />
+          <div className="article-info">
+            <p><strong>Autor:</strong> {article.author}</p>
+            <p><strong>Data publicării:</strong> {formatDate(article.published_date)}</p>
+            <p><strong>{getNumberOfViews(article)}</strong></p>
+            <p><strong>{getNumberOfComments(article)}</strong></p>
           </div>
-          <div>
-            <p>{article.emotion}</p>
+          <div className="article-content">
+            <p>
+              {article.article_text && Array.isArray(article.article_text) ?
+                article.article_text.map(paragraph => paragraph.split(/\s+/)).flat().slice(0, maxWords).join(' ') :
+                "Article text not available"
+              }
+              {article.article_text && Array.isArray(article.article_text) && article.article_text.flatMap(paragraph => paragraph.split(/\s+/)).length > maxWords && '...'}
+              <span className="fade-out"></span>
+            </p>
           </div>
+          <a href={article.url} className="full-article-button" target="_blank" rel="noopener noreferrer">Articolul Complet</a>
+          <div className='article-info'>
+            <div className="tag-list">
+              {article.tags.map((tag, index) => (
+                <Link key={index} to={`/tags/${tag}`} className="tag-link">{tag}</Link>
+              ))}
+            </div>
+            <div className="first-article-source-image">
+              <img src={article.source_image_url} alt={article.source_name} className="details-source-icon" />
+            </div>
+            <div>
+              <p>{article.emotion}</p>
+            </div>
+          </div>
+          
         </div>
-        
+        <div className='third-part'>
+          <ArticlesLastWeekChart />
+        </div>
       </div>
       <Footer />
     </div>

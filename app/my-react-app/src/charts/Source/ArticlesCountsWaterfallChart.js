@@ -22,8 +22,13 @@ function SourceArticlesCountsWaterfallChart({ sourceId }) {
     const { total, positive, negative, neutral } = counts;
     return {
       title: {
-        text: 'Articole Publicate Azi',
+        text: 'Articole Publicate Astăzi\ndespre Marcel Ciolacu',
         left: 'center',
+        textStyle: {
+          color: '#000', // Title text color black
+          fontSize: 20,
+          lineHeight: 24
+        }
       },
       tooltip: {
         trigger: 'axis',
@@ -33,6 +38,9 @@ function SourceArticlesCountsWaterfallChart({ sourceId }) {
         formatter: function (params) {
           const tar = params[1];
           return `${tar.name}<br/>${tar.seriesName} : ${tar.value}`;
+        },
+        textStyle: {
+          color: '#000' // Tooltip text color black
         }
       },
       grid: {
@@ -44,10 +52,20 @@ function SourceArticlesCountsWaterfallChart({ sourceId }) {
       xAxis: {
         type: 'category',
         splitLine: { show: false },
-        data: ['Total', 'Pozitive', 'Negative', 'Neutre']
+        data: ['Total', 'Pozitive', 'Negative', 'Neutre'],
+        axisLabel: {
+          textStyle: {
+            color: '#000' // X-axis labels text color black
+          }
+        }
       },
       yAxis: {
-        type: 'value'
+        type: 'value',
+        axisLabel: {
+          textStyle: {
+            color: '#000' // Y-axis labels text color black
+          }
+        }
       },
       series: [
         {
@@ -72,17 +90,23 @@ function SourceArticlesCountsWaterfallChart({ sourceId }) {
           stack: 'Total',
           label: {
             show: true,
-            position: 'inside'
+            position: 'inside',
+            textStyle: {
+              color: 'white' // Labels text color black
+            }
           },
           data: [total, positive, negative, neutral],
           itemStyle: {
             color: function (params) {
-              const colors = ['#4682B4','#00FF00', '#FF0000', '#808080'];
+              const colors = ['#4682B4', '#00FF00', '#FF0000', '#808080'];
               return colors[params.dataIndex];
             }
           }
         }
-      ]
+      ],
+      textStyle: {
+        color: '#000' // Default text color for the entire chart
+      }
     };
   };
 

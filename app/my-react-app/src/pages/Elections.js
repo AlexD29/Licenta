@@ -4,6 +4,7 @@ import './Elections.css';
 import Footer from '../Footer';
 import { formatDate } from '../Articles';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { truncateTitle } from '../Articles';
 
 const calculateRemainingDays = (date) => {
     const now = new Date();
@@ -215,26 +216,49 @@ const Elections = () => {
                         </Link>
                     </ul>
                 </div>
-                <div className='second-part'>
-                    <div className='articles-part'>
-                    {articles.map((article) => (
-                        <Link key={article.id} to={`/article/${article.id}`} className="article-link-minimized">
-                            <div className={`article-card-minimized ${article.emotion.toLowerCase()}`}>
-                                <div className="article-image-div-minimized">
-                                    <img src={article.image_url} className="article-image-minimized" />
-                                </div>
-                                <div className="article-details-div-minimized">
-                                    <h3 className="article-text-minimized">{article.title}</h3>
-                                    <p className="article-text-minimized">{formatDate(article.published_date)}</p>
-                                </div>
+                <div className="second-part">
+                    <div className="articles-part">
+                        {articles.map((article) => (
+                        <Link
+                            key={article.id}
+                            to={`/article/${article.id}`}
+                            className="article-link-minimized"
+                        >
+                            <div
+                            className={`article-card-minimized ${article.emotion.toLowerCase()}`}
+                            >
+                            <div className="article-image-div-minimized">
+                                <img
+                                src={article.image_url}
+                                className="article-image-minimized"
+                                alt=""
+                                />
+                            </div>
+                            <div className="article-details-div-minimized">
+                                <h3 className="article-text-minimized">
+                                {truncateTitle(article.title, 130)}
+                                </h3>
+                                <div className="article-date-and-source">
+                                <p className="article-text-minimized">
+                                    {formatDate(article.published_date)}
+                                </p>
                                 <div className="article-source-image-minimized">
-                                    <img src={article.source_image_url} alt={article.source_name} className="source-icon-minimized" />
+                                    <img
+                                    src={article.source_image_url}
+                                    alt={article.source_name}
+                                    className="source-icon-minimized"
+                                    />
+                                </div>
                                 </div>
                             </div>
+                            </div>
                         </Link>
-                    ))}
+                        ))}
                     </div>
                     <Pagination currentPage={currentPage} totalPages={totalPages} category={category} />
+                </div>
+                <div className='third-part'>
+
                 </div>
             </div>
             <Footer/>

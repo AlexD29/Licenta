@@ -6,13 +6,17 @@
     display: flex;
 }
 
+.home-second-part{
+  display: flex;
+}
+
 .home-left-side{
     width:60%;
     margin-right: 5%;
 }
 
 .home-right-side{
-  width: 100%;
+  width: 40%;
 }
 
 
@@ -42,11 +46,6 @@
 .article-card.neutral:hover {
   background-color: #9e9e9e; /* Updated gray color */
 }
-
-
-/* .article-card:hover {
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-} */
 
 .article-link {
   text-decoration: none;
@@ -86,10 +85,43 @@
   height: auto;
 }
 
-.first-article-image{
+.first-article-image-div {
+  position: relative;
+  width: 100%; /* Adjust as needed */
+  height: auto; /* Adjust as needed */
+  overflow: hidden; /* Ensures the pseudo-element doesn't overflow */
+}
+
+.first-article-image {
   width: 100%;
   height: 25rem;
+  display: block; /* Remove any extra space below the image */
 }
+
+.first-article-image-div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%; /* Adjust the height of the bar as needed */
+  background: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+  z-index: 1; /* Ensure it stays above the image */
+}
+
+/* Emotion-based colors with gradients */
+.first-article-image-div.positive::before {
+  background: linear-gradient(to right, rgba(0, 128, 0, 0), rgba(0, 128, 0, 0.5), rgba(0, 128, 0, 0));
+}
+
+.first-article-image-div.negative::before {
+  background: linear-gradient(to right, rgba(255, 0, 0, 0), rgba(255, 0, 0, 0.5), rgba(255, 0, 0, 0));
+}
+
+.first-article-image-div.neutral::before {
+  background: linear-gradient(to right, rgba(128, 128, 128, 0), rgba(128, 128, 128, 0.5), rgba(128, 128, 128, 0));
+}
+
 
 .small-article-image-div{
     width: 30%;

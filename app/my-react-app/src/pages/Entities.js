@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Entities.css";
 import { formatDate } from "../Articles";
 import Footer from '../Footer';
 import SourcesOverallEmotionDistribution from "charts/SourcesOverallEmotionDistribution";
-import RomaniaMap from "charts/RomaniaMap";
 
 const Entities = ({ userId, entityType, apiUrl, isSource }) => {
   const [data, setData] = useState(null);
@@ -88,8 +87,10 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        await fetchFavorites();
-        await fetchHiddenEntities();
+        if (userId) {
+          await fetchFavorites();
+          await fetchHiddenEntities();
+        }
         const response = await axios.get(apiUrl);
         setData(response.data);
       } catch (error) {
@@ -99,7 +100,7 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
       }
     };
     fetchData();
-  }, [apiUrl]);
+  }, [apiUrl, userId]);
 
   if (loading) {
     return (
@@ -117,10 +118,10 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
   return (
     <div>
       <div className="entities-container">
-        <div className="first-section">
+        <div className="first-part">
           <SourcesOverallEmotionDistribution />
         </div>
-        <div className="entities-section">
+        <div className="second-part">
           {data.map((entity) => {
             const entityKey = `${entity.id}-${entityType}`;
             if (hiddenEntities.has(entityKey)) return null;
@@ -140,7 +141,7 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
                         `${entity.first_name} ${entity.last_name}`}
                     </h3>
                     <div className="button-container">
-                      {!isSource && (
+                      {!isSource && userId && (
                         <button
                           className={`profile-button follow-button ${
                             favorites.has(entityKey) ? "unfollow-button" : ""
@@ -167,7 +168,7 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
                           </span>
                         </button>
                       )}
-                      {!isSource && (
+                      {!isSource && userId && (
                         <button
                           className="profile-button hide-button"
                           onClick={() => handleHideClick(entity.id, entityType)}
@@ -233,7 +234,7 @@ const Entities = ({ userId, entityType, apiUrl, isSource }) => {
             );
           })}
         </div>
-        <div className="statistics-section">
+        <div className="third-part">
           {/* <RomaniaMap /> */}
         </div>
       </div>

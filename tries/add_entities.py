@@ -29,14 +29,13 @@ def insert_political_parties_from_excel_to_db():
     cursor = conn.cursor()
 
     for index, row in parties_df.iterrows():
-        values = (row['Abbreviation'], row['Full Name'], row['Description'], row['Image URL'])
-        cursor.execute('''INSERT INTO political_parties (abbreviation, full_name, description, image_url)
-                            VALUES (%s, %s, %s, %s)''', values)
+        values = (row['Abbreviation'], row['Full Name'], row['Description'], row['Image URL'], row['Founded Year'], row['Position'], row['Ideology'])
+        cursor.execute('''INSERT INTO political_parties (abbreviation, full_name, description, image_url, founded_year, position, ideology)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)''', values)
 
     conn.commit()
     print("Data inserted successfully.")
     conn.close()
-
 
 def insert_cities_from_excel_to_db():
     excel_file="cities.xlsx"
@@ -51,4 +50,6 @@ def insert_cities_from_excel_to_db():
 
 #insert_politicians_from_excel_to_db()
 
-insert_cities_from_excel_to_db()
+#insert_cities_from_excel_to_db()
+    
+#insert_political_parties_from_excel_to_db()

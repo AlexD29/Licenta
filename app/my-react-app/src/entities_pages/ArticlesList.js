@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { formatDate } from "Articles";
+import { truncateTitle } from "Articles";
 
 const ArticlesList = ({ entity_id, entity_type, currentPage }) => {
   const navigate = useNavigate();
@@ -62,30 +63,101 @@ const ArticlesList = ({ entity_id, entity_type, currentPage }) => {
 
   return (
     <div className="second-part">
-      <div className="articles-part">
-        {articles.map((article) => (
-          <Link
-            key={article.id}
-            to={`/article/${article.id}`}
-            className="article-link-minimized"
-          >
-            <div
-              className={`article-card-minimized ${article.emotion.toLowerCase()}`}
+          <div className="articles-part">
+            {articles.map((article) => (
+              <Link
+                key={article.id}
+                to={`/article/${article.id}`}
+                className="article-link-minimized"
+              >
+                <div
+                  className={`article-card-minimized ${article.emotion.toLowerCase()}`}
+                >
+                  <div className="article-image-div-minimized">
+                    <img
+                      src={article.image_url}
+                      className="article-image-minimized"
+                      alt=""
+                    />
+                  </div>
+                  <div className="article-details-div-minimized">
+                    <h3 className="article-text-minimized">
+                      {truncateTitle(article.title, 130)}
+                    </h3>
+                    <div className="article-date-and-source">
+                      <p className="article-text-minimized">
+                        {formatDate(article.published_date)}
+                      </p>
+                      {entity_type !== 'source' && (
+                        <div className="article-source-image-minimized">
+                          <img
+                            src={article.source_image_url}
+                            alt={article.source_name}
+                            className="source-icon-minimized"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="pagination">
+            <button
+              onClick={handlePrevPage}
+              disabled={currentPage === 1}
+              className="page-nav"
             >
-              <div className="article-image-div-minimized">
-                <img
-                  src={article.image_url}
-                  className="article-image-minimized"
-                  alt=""
-                />
-              </div>
-              <div className="article-details-div-minimized">
-                <h3 className="article-text-minimized">{article.title}</h3>
-                <p className="article-text-minimized">
-                  {formatDate(article.published_date)}
-                </p>
-              </div>
-              {entity_type !== 'source' && (
+              <svg
+                className="pagination-svg"
+                width="100%"
+                height="100%"
+                viewBox="0 0 16 16"
+                version="1.1"
+                style={{
+                  fillRule: "evenodd",
+                  clipRule: "evenodd",
+                  strokeLinejoin: "round",
+                  strokeMiterlimit: 2,
+                }}
+              >
+                <g id="Icon">
+                  <path d="M11.53,13.47l-5.469,-5.47c-0,-0 5.469,-5.47 5.469,-5.47c0.293,-0.292 0.293,-0.768 0,-1.06c-0.292,-0.293 -0.768,-0.293 -1.06,-0l-6,6c-0.293,0.293 -0.293,0.767 -0,1.06l6,6c0.292,0.293 0.768,0.293 1.06,0c0.293,-0.292 0.293,-0.768 0,-1.06Z"></path>
+                </g>
+              </svg>
+            </button>
+            <span className="current-page">{currentPage}</span>
+            <button
+              onClick={handleNextPage}
+              disabled={
+                currentPage >= Math.ceil(totalArticles / articlesPerPage)
+              }
+              className="page-nav"
+            >
+              <svg
+                className="pagination-svg"
+                version="1.1"
+                id="Layer_1"
+                x="0px"
+                y="0px"
+                viewBox="0 0 32 32"
+                style={{ enableBackground: "new 0 0 32 32" }}
+              >
+                <g>
+                  <path
+                    d="M11.5,26c-0.3,0-0.5-0.1-0.7-0.3c-0.4-0.4-0.4-1,0-1.4l8.3-8.3l-8.3-8.3c-0.4-0.4-0.4-1,0-1.4s1-0.4,1.4,0l9,9
+                  c0.4,0.4,0.4,1,0,1.4l-9,9C12,25.9,11.8,26,11.5,26z"
+                  ></path>
+                </g>
+              </svg>
+            </button>
+          </div>
+        </div>
+  );
+  {/*
+  
+  {entity_type !== 'source' && (
                 <div className="article-source-image-minimized">
                   <img
                     src={article.source_image_url}
@@ -93,63 +165,7 @@ const ArticlesList = ({ entity_id, entity_type, currentPage }) => {
                     className="source-icon-minimized"
                   />
                 </div>
-              )}
-            </div>
-          </Link>
-        ))}
-      </div>
-      <div className="pagination">
-        <button
-          onClick={handlePrevPage}
-          disabled={currentPage === 1}
-          className="page-nav"
-        >
-          <svg
-            className="pagination-svg"
-            width="100%"
-            height="100%"
-            viewBox="0 0 16 16"
-            version="1.1"
-            style={{
-              fillRule: "evenodd",
-              clipRule: "evenodd",
-              strokeLinejoin: "round",
-              strokeMiterlimit: 2,
-            }}
-          >
-            <g id="Icon">
-              <path d="M11.53,13.47l-5.469,-5.47c-0,-0 5.469,-5.47 5.469,-5.47c0.293,-0.292 0.293,-0.768 0,-1.06c-0.292,-0.293 -0.768,-0.293 -1.06,-0l-6,6c-0.293,0.293 -0.293,0.767 -0,1.06l6,6c0.292,0.293 0.768,0.293 1.06,0c0.293,-0.292 0.293,-0.768 0,-1.06Z"></path>
-            </g>
-          </svg>
-        </button>
-        <span className="current-page">{currentPage}</span>
-        <button
-          onClick={handleNextPage}
-          disabled={
-            currentPage >= Math.ceil(totalArticles / articlesPerPage)
-          }
-          className="page-nav"
-        >
-          <svg
-            className="pagination-svg"
-            version="1.1"
-            id="Layer_1"
-            x="0px"
-            y="0px"
-            viewBox="0 0 32 32"
-            style={{ enableBackground: "new 0 0 32 32" }}
-          >
-            <g>
-              <path
-                d="M11.5,26c-0.3,0-0.5-0.1-0.7-0.3c-0.4-0.4-0.4-1,0-1.4l8.3-8.3l-8.3-8.3c-0.4-0.4-0.4-1,0-1.4s1-0.4,1.4,0l9,9
-              c0.4,0.4,0.4,1,0,1.4l-9,9C12,25.9,11.8,26,11.5,26z"
-              ></path>
-            </g>
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
+              )} */}
 };
 
 export default ArticlesList;

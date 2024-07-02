@@ -31,12 +31,7 @@
 .alegeri-content{
     display: flex;
     flex-direction: row;
-    margin-top: 2rem;
-}
-
-.first-part{
-    width:20%;
-    padding: 10px 0 0 10px;
+    margin-top: 1rem;
 }
 
 .alegeri-list {
@@ -99,7 +94,7 @@
 
 /*ARTICLES*/
 
-.second-part{
+/* .second-part{
     margin: 10px 0 0 1%;
     width: 49%;
 }
@@ -175,4 +170,4 @@
 .source-icon-minimized{
     width: 4rem;
     height: auto;
-}
+} */

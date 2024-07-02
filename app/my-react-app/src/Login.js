@@ -34,8 +34,9 @@ function Login() {
         console.log('Login successful', response.data);
 
         Cookies.set('session_token', response.data.session_token, { expires: 7 });
+        
         navigate('/');
-    
+        window.location.reload();
         setEmail('');
         setPassword('');
         setError('');
@@ -73,7 +74,9 @@ function Login() {
           />
         </div>
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="btn-login">Login</button>
+        <div className='btn-div'>
+          <button type="submit" className="btn-login">Login</button>
+        </div>
       </form>
       <div className="auth-switch">
         <p>Don't have an account? <a href="/signup">Signup</a></p>

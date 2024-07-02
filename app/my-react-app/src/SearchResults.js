@@ -5,6 +5,8 @@ import { formatDate } from 'Articles';
 import { formatPopulation } from 'entities_pages/CityPage';
 import { calculateRemainingDays } from 'pages/Elections';
 import Footer from 'Footer';
+import PoliticianSourcesChart from 'charts/Politician/PoliticianSourcesChart';
+import PoliticianArticlesDistribution from 'charts/Politician/PoliticianArticlesDistribution';
 
 const SearchResults = () => {
   const [results, setResults] = useState(null);
@@ -35,21 +37,14 @@ const SearchResults = () => {
       window.scrollTo({ top: 0, behavior: "smooth" });
       const data = await response.json();
       
-      console.log('Received data:', data);
-      
       setResults(data.results);
       setTotalResults(data.totalResults);
-      
-      console.log('Results set:', data.results);
-      console.log('Current Page:', data.currentPage);
-      console.log('Total Results:', data.totalResults);
       
     } catch (error) {
       console.error('Error fetching search results:', error);
     }
   };
   
-
   useEffect(() => {
     if (query) {
       fetchResults(currentPage);
@@ -107,6 +102,7 @@ const normalizeString = (str) => {
       </div>
       <div className='results-div'>
         <div className='first-part'>
+            <PoliticianSourcesChart politicianId={11} />
         </div>
         <div className="second-part">
             {categoryOrder.map((category) => (
@@ -330,6 +326,9 @@ const normalizeString = (str) => {
                 </svg>
                 </button>
             </div>
+        </div>
+        <div className='third-part'>
+            <PoliticianArticlesDistribution politicianId={11} />
         </div>
       </div>
       <Footer/>

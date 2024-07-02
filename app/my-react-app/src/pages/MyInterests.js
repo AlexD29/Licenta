@@ -5,6 +5,9 @@ import Pagination from "./Pagination";
 import { formatDate } from "../Articles";
 import "./MyInterests.css";
 import Footer from "../Footer";
+import MyInterestsCalendarChart from "charts/Politician/MyInterestsCalendarChart";
+import NightingaleChart from "charts/Politician/NightingaleChart";
+import { truncateTitle } from "../Articles";
 
 const MyInterests = ({ userId }) => {
   const [favorites, setFavorites] = useState({});
@@ -15,38 +18,49 @@ const MyInterests = ({ userId }) => {
   const [totalPages, setTotalPages] = useState(1);
   const [hasFavorites, setHasFavorites] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
+  const [userChecked, setUserChecked] = useState(false);
 
   useEffect(() => {
-    const fetchMyInterests = async (page = 1) => {
-      try {
-        const response = await axios.get(
-          "http://localhost:8000/api/my_interests",
-          {
-            params: { user_id: userId, page },
-          }
-        );
-        const favoriteEntities = response.data.favorite_entities || [];
-        const groupedFavorites = favoriteEntities.reduce((acc, entity) => {
-          const { type } = entity;
-          if (!acc[type]) {
-            acc[type] = [];
-          }
-          acc[type].push(entity);
-          return acc;
-        }, {});
-
-        setFavorites(groupedFavorites);
-        setArticles(response.data.related_articles || []);
-        setTotalPages(response.data.total_pages || 1);
-      } catch (error) {
-        console.error("Error fetching my interests:", error);
-        setError("Failed to load your interests. Please try again later.");
-      } finally {
-        setLoading(false);
+    const verifyUser = async () => {
+      if (!userId) {
+        setUserChecked(true);
+        return;
       }
+
+      const fetchMyInterests = async (page = 1) => {
+        try {
+          const response = await axios.get(
+            "http://localhost:8000/api/my_interests",
+            {
+              params: { user_id: userId, page },
+            }
+          );
+          const favoriteEntities = response.data.favorite_entities || [];
+          const groupedFavorites = favoriteEntities.reduce((acc, entity) => {
+            const { type } = entity;
+            if (!acc[type]) {
+              acc[type] = [];
+            }
+            acc[type].push(entity);
+            return acc;
+          }, {});
+
+          setFavorites(groupedFavorites);
+          setArticles(response.data.related_articles || []);
+          setTotalPages(response.data.total_pages || 1);
+        } catch (error) {
+          console.error("Error fetching my interests:", error);
+          setError("Failed to load your interests. Please try again later.");
+        } finally {
+          setLoading(false);
+          setUserChecked(true); // Set to true after checking user ID
+        }
+      };
+
+      fetchMyInterests(currentPage);
     };
 
-    fetchMyInterests(currentPage);
+    verifyUser();
   }, [userId, currentPage]);
 
   useEffect(() => {
@@ -128,19 +142,18 @@ const MyInterests = ({ userId }) => {
       console.error("Error updating favorites:", error);
     }
   };
-  
 
   const typeTranslations = {
     politician: "Politicieni",
     city: "Orașe",
-    political_party: "Partide Politice",
+    'political-party': "Partide Politice",
   };
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
-  if (loading) {
+  if (!userChecked) {
     return (
       <div className="loading-container">
         <div className="loading-animation"></div>
@@ -149,20 +162,44 @@ const MyInterests = ({ userId }) => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="error-container">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
   return (
+    <div className={`interests-container ${!userChecked ? "hidden-content" : ""}`}>
+    {!userId ? (
+    <div>
+      <div className="not-logged-in">
+        <div className="redirect-to-login-div big-div">
+          <div className="small-div">
+            <h1>Trebuie să fii autentificat pentru a-ți vedea interesele.</h1>
+            <Link to="/login" className="login-link"><h2>Spre Login</h2></Link>
+          </div>
+          <hr className="custom-hr"/>
+          <h1>De ce sa-ti faci cont?</h1>
+          <p>
+            Crearea unui cont pe platforma noastră vă oferă o experiență personalizată și adaptată preferințelor dumneavoastră. Prin autentificare, aveți acces la o serie de funcționalități exclusive care vă vor ajuta să rămâneți informat și să primiți doar știri care vă interesează cu adevărat.
+          </p>
+          <p>
+            Una dintre principalele beneficii ale creării unui cont este posibilitatea de a adăuga entități la favorite. Astfel, veți primi cele mai recente și relevante știri despre politicienii, partidele politice sau orașele care vă interesează cel mai mult. Nu mai pierdeți timp căutând informațiile dorite, deoarece acestea vor fi aduse direct la dumneavoastră.
+          </p>
+          <p>
+            De asemenea, puteți ascunde știrile pe care nu doriți să le vedeți. Prin filtrarea conținutului nedorit, veți avea o experiență de citire mult mai plăcută și eficientă. Puteți să vă concentrați doar pe ceea ce contează pentru dumneavoastră, fără a fi deranjați de subiecte irelevante.
+          </p>
+          <p>
+            Un alt avantaj al contului este accesul la statistici și analize detaliate. Vă oferim informații despre tonul știrilor (pozitiv, negativ sau neutru) și cum sunt percepuți diferiți politicieni sau partide politice. Aceste statistici vă ajută să înțelegeți mai bine peisajul politic și să luați decizii informate.
+          </p>
+          <p>
+            În concluzie, crearea unui cont pe platforma noastră nu doar că îmbunătățește experiența de utilizare, dar vă oferă și instrumentele necesare pentru a rămâne informat și a avea o perspectivă clară asupra știrilor politice. Nu ratați aceste beneficii - creați un cont și autentificați-vă pentru a profita la maximum de toate funcționalitățile disponibile.
+          </p>
+          <div className="my-interests-image" style={{ maskImage: `url(/icons/WDIVW_text_logo.png)`, WebkitMaskImage: `url(/icons/WDIVW_text_logo.png)` }} alt="Despre Noi"></div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+    ) : (
     <div className="interests-container">
       <div className="interests-content">
         <div
-          className={`first-part ${
-            hasFavorites ? "has-favorites" : "no-favorites"
+          className={`${
+            hasFavorites ? "first-part-favorite" : "no-favorites-part"
           }`}
         >
           <div>
@@ -259,52 +296,62 @@ const MyInterests = ({ userId }) => {
           </div>
         </div>
         {hasFavorites && (
-          <div className="second-part">
-            <div className="articles-part">
-              {articles.map((article) => (
-                <Link
-                  key={article.id}
-                  to={`/article/${article.id}`}
-                  className="article-link-minimized"
-                >
-                  <div
-                    className={`article-card-minimized ${article.emotion.toLowerCase()}`}
+          <div className="favorites-columns">
+            <div className="second-part-favorite">
+              <div className="articles-part">
+                {articles.map((article) => (
+                  <Link
+                    key={article.id}
+                    to={`/article/${article.id}`}
+                    className="article-link-minimized"
                   >
-                    <div className="article-image-div-minimized">
-                      <img
-                        src={article.image_url}
-                        className="article-image-minimized"
-                        alt="Article"
-                      />
+                    <div
+                      className={`article-card-minimized ${article.emotion.toLowerCase()}`}
+                    >
+                      <div className="article-image-div-minimized">
+                        <img
+                          src={article.image_url}
+                          className="article-image-minimized"
+                          alt=""
+                        />
+                      </div>
+                      <div className="article-details-div-minimized">
+                        <h3 className="article-text-minimized">
+                          {truncateTitle(article.title, 130)}
+                        </h3>
+                        <div className="article-date-and-source">
+                          <p className="article-text-minimized">
+                            {formatDate(article.published_date)}
+                          </p>
+                          <div className="article-source-image-minimized">
+                            <img
+                              src={article.source_image_url}
+                              alt={article.source_name}
+                              className="source-icon-minimized"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="article-details-div-minimized">
-                      <h3 className="article-text-minimized">
-                        {article.title}
-                      </h3>
-                      <p className="article-text-minimized">
-                        {formatDate(article.published_date)}
-                      </p>
-                    </div>
-                    <div className="article-source-image-minimized">
-                      <img
-                        src={article.source_image_url}
-                        alt={article.source_name}
-                        className="source-icon-minimized"
-                      />
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
+              <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
             </div>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
+            <div className="third-part-favorite">
+              <MyInterestsCalendarChart />
+              <NightingaleChart />
+            </div>
           </div>
         )}
       </div>
       <Footer />
+    </div>
+    )}
     </div>
   );
 };

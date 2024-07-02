@@ -135,7 +135,7 @@ const SourcePage = ({ userId }) => {
             </div>
             <div className="info-second-column">
               <div className="second-column-first-row">
-                <div className="entity-big-text">{source.position}</div>
+                <div className="entity-big-text">#1 Articole publicate în această săptămână</div>
                 <div class="profile-button-div-political-party">
                   <button
                     className="redirect-website-button"

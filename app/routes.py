@@ -8,45 +8,20 @@ import secrets
 import random
 from flask import g
 from datetime import datetime, timedelta, date
-from flask import jsonify
 from .models import db
 from .queries import *
+from .db import before_request, after_request
+from .stats_routes import statistics_bp
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@localhost/Licenta'
 db.init_app(app)
 
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname="Licenta",
-            user="postgres",
-            password="password",
-            host="localhost"
-        )
-        return conn
-    except Exception as e:
-        print("Error connecting to the database:", e)
-        return None
+app.before_request(before_request)
+app.after_request(after_request)
 
-@app.before_request
-def before_request():
-    g.db_conn = get_db_connection()
-    if g.db_conn is not None:
-        g.db_cursor = g.db_conn.cursor()
-    else:
-        g.db_cursor = None
-
-@app.after_request
-def after_request(response):
-    db_cursor = getattr(g, 'db_cursor', None)
-    db_conn = getattr(g, 'db_conn', None)
-    if db_cursor is not None:
-        db_cursor.close()
-    if db_conn is not None:
-        db_conn.close()
-    return response
+app.register_blueprint(statistics_bp)
 
 @app.route('/')
 def index():
@@ -63,6 +38,10 @@ def serve_css(path):
 @app.route('/<path:path>')
 def serve_static_files(path):
     return send_from_directory(os.path.join('my-react-app', 'build'), path)
+
+
+
+
 
 @app.route('/api/articles', methods=['GET'])
 def get_articles():
@@ -614,9 +593,6 @@ def sources_articles():
         print("Error fetching sources articles:", e)
         return jsonify({"error": "Failed to fetch sources articles"}), 500
 
-from datetime import datetime, timedelta
-from flask import jsonify
-
 @app.route('/api/explore', methods=['GET'])
 def explore_data():
     try:
@@ -625,7 +601,8 @@ def explore_data():
         # Determine the start of the week (last Monday)
         today = datetime.today()
         last_monday = today - timedelta(days=today.weekday())
-        date_range_start = last_monday
+        first_day_of_month = datetime(today.year, today.month, 1)
+        date_range_start = first_day_of_month
         date_range_end = today
 
         # Fetch top 3 politicians based on tag appearances this week
@@ -761,7 +738,6 @@ def explore_data():
     except Exception as e:
         print("Error fetching explore data:", e)
         return jsonify({"error": "Failed to fetch explore data"}), 500
-
 
 @app.route('/api/politicians', methods=['GET'])
 def politicians_data():
@@ -1623,7 +1599,7 @@ def get_political_party(id):
         
         cur = g.db_cursor
         fields = """
-            pp.id, pp.full_name, pp.abbreviation, pp.description, pp.image_url, 'political-party' as entity_type
+            pp.id, pp.full_name, pp.abbreviation, pp.description, pp.image_url, pp.founded_year, pp.position, pp.ideology, pp.president_id, 'political-party' as entity_type
         """
         cur.execute(f"""
             SELECT {fields}
@@ -2019,126 +1995,28 @@ def login():
 def protected_route():
     try:
         session_token = request.cookies.get('session_token')
+        user_data = {}
 
-        if not session_token:
-            return jsonify({"error": "Session token is required"}), 401
+        if session_token:
+            cur = g.db_cursor
+            cur.execute("SELECT id, email FROM users WHERE session_token = %s", (session_token,))
+            user = cur.fetchone()
 
-        cur = g.db_cursor
+            if user:
+                user_data = {
+                    "id": user[0],
+                    "email": user[1],
+                }
+                return jsonify({"message": "You are authorized to access this resource", "user": user_data}), 200
 
-        cur.execute("SELECT * FROM users WHERE session_token = %s", (session_token,))
-        user = cur.fetchone()
-
-        if not user:
-            return jsonify({"error": "Invalid session token"}), 401
-
-        return jsonify({"message": "You are authorized to access this resource"}), 200
+        # If no session token or user is not found
+        return jsonify({"message": "You are not logged in", "user": user_data}), 200
 
     except Exception as e:
         print("Error accessing protected route:", e)
         return jsonify({"error": "Failed to access protected route"}), 500
+    
 
-
-
-### CHARTS ###
-
-@app.route('/api/articles/today', methods=['GET'])
-def get_today_articles():
-    try:
-        today_date = datetime.now().date()
-
-        cur = g.db_cursor
-
-        cur.execute("""
-            SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion
-            FROM articles AS a
-            WHERE DATE(a.published_date) = %s
-            ORDER BY a.published_date DESC
-        """, (today_date,))
-        articles = cur.fetchall()
-
-        articles_list = []
-        for article in articles:
-            cur.execute("""
-                SELECT tag_text
-                FROM tags
-                WHERE article_id = %s
-            """, (article[0],))
-            tags = [tag[0] for tag in cur.fetchall()]
-
-            cur.execute("""
-                SELECT name
-                FROM sources
-                WHERE id = %s
-            """, (article[7],))
-            source = cur.fetchone()
-
-            article_dict = {
-                'id': article[0],
-                'title': article[1],
-                'url': article[2],
-                'author': article[3],
-                'published_date': article[4],
-                'number_of_views': article[5],
-                'tags': tags,
-                'image_url': article[6],
-                'emotion': article[8],
-                'source': source
-            }
-            articles_list.append(article_dict)
-
-        return jsonify({
-            'articles': articles_list,
-        })
-
-    except Exception as e:
-        print("Error fetching today's articles:", e)
-        return jsonify({"error": "Failed to fetch today's articles"}), 500
-
-@app.route('/api/articles/emotion-distribution', methods=['GET'])
-def get_emotion_distribution():
-    try:
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-
-        query = """
-            SELECT s.id, s.name, s.image_url, a.emotion, COUNT(*)
-            FROM articles AS a
-            JOIN sources AS s ON a.source = s.id
-            WHERE 1=1
-        """
-        params = []
-
-        if start_date:
-            query += " AND DATE(a.published_date) >= %s"
-            params.append(start_date)
-
-        if end_date:
-            query += " AND DATE(a.published_date) <= %s"
-            params.append(end_date)
-
-        query += " GROUP BY s.id, s.name, s.image_url, a.emotion"
-
-        cur = g.db_cursor
-        cur.execute(query, tuple(params))
-        results = cur.fetchall()
-
-        emotion_distribution = {}
-        for source_id, name, image_url, emotion, count in results:
-            if name not in emotion_distribution:
-                emotion_distribution[name] = {
-                    'id': source_id,
-                    'image_url': image_url,
-                    'positive': 0,
-                    'negative': 0,
-                    'neutral': 0
-                }
-            emotion_distribution[name][emotion.lower()] = count
-
-        return jsonify(emotion_distribution)
-
-    except Exception as e:
-        print("Error fetching emotion distribution:", e)
-        return jsonify({"error": "Failed to fetch emotion distribution"}), 500
 
 
 ### SOURCE CHARTS ###
@@ -2424,4 +2302,100 @@ def get_top_entities(source_id):
 
 ### POLITICIAN CHARTS ###
     
+@app.route('/api/politician-sources-count/<int:politician_id>', methods=['GET'])
+def get_sources_by_politician_id(politician_id):
+    try:
+        cur = g.db_cursor
+        
+        cur.execute("""
+            WITH unique_articles AS (
+                SELECT DISTINCT a.id, a.source
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM tag_politician
+                    JOIN tags ON tag_politician.tag_id = tags.id
+                    WHERE politician_id = %s
+                )
+            )
+            SELECT s.id, s.name, s.image_url, COUNT(ua.id) AS article_count
+            FROM unique_articles AS ua
+            JOIN sources AS s ON ua.source = s.id
+            GROUP BY s.id
+            ORDER BY article_count DESC
+        """, (politician_id,))
+        sources = cur.fetchall()
+
+        sources_list = []
+        for source in sources:
+            source_dict = {
+                'id': source[0],
+                'name': source[1],
+                'image_url': source[2],
+                'article_count': source[3]
+            }
+            sources_list.append(source_dict)
+
+        return jsonify(sources_list)
+
+    except Exception as e:
+        print("Error fetching sources for politician:", e)
+        return jsonify({"error": "Failed to fetch sources for politician"}), 500
+
+@app.route('/api/politician-articles-distribution/<int:politician_id>', methods=['GET'])
+def get_articles_distribution(politician_id):
+    try:
+        cur = g.db_cursor
+
+        today = datetime.today()
+        date_7_days_ago = today - timedelta(days=7)
+
+        cur.execute("""
+            SELECT 
+                DATE(a.published_date) AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_politician
+                JOIN tags ON tag_politician.tag_id = tags.id
+                WHERE politician_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY DATE(a.published_date)
+            ORDER BY publish_date
+        """, (politician_id, date_7_days_ago, today))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0].strftime('%Y-%m-%d'))
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+
+        return jsonify({
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for politician:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for politician"}), 500
+
+
 

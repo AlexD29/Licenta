@@ -1,41 +1,41 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import ReactEcharts from 'echarts-for-react';
 import * as echarts from 'echarts';
 import { format } from 'date-fns';
 import { ro } from 'date-fns/locale';
 
-function SourceEmotionDistributionOverTimeChart({ sourceId }) {
+const MyInterestsCalendarChart = () => {
   const [chartData, setChartData] = useState([]);
 
-  // Calculate start date as January 1, 2024
-  const startDate = '2024-01-01';
+  const generateRandomData = () => {
+    const data = [];
+    const currentDate = new Date();
+    const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
 
-  // Calculate end date as today's date
-  const endDate = new Date().toISOString().split('T')[0];
-
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await axios.get(`http://localhost:8000/api/articles/emotion-distribution-over-time/source/${sourceId}`, {
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-        },
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), i);
+      data.push({
+        date,
+        positive: Math.floor(Math.random() * 10),
+        negative: Math.floor(Math.random() * 10),
+        neutral: Math.floor(Math.random() * 10)
       });
-      setChartData(response.data);
-    } catch (error) {
-      console.error('Error fetching data:', error);
     }
-  }, [sourceId, startDate, endDate]);
+
+    setChartData(data);
+  };
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    generateRandomData();
+  }, []);
 
   const getOption = () => ({
     title: {
-      text: 'Distribuția Emoțiilor în Timp',
+      text: 'Distribuția Emoțiilor în ultima lună\npentru favoritele tale',
       left: 'center',
+      textStyle: {
+        color: '#000' // Set title color to black
+      }
     },
     tooltip: {
       trigger: 'axis',
@@ -45,34 +45,40 @@ function SourceEmotionDistributionOverTimeChart({ sourceId }) {
           backgroundColor: '#6a7985',
         },
       },
+      textStyle: {
+        color: '#000' // Set tooltip text color to black
+      }
     },
     legend: {
-        top: 'bottom',
-        itemGap: 20,
-        data: [
-          {
-            name: 'Pozitiv',
-            icon: 'circle',
-            itemStyle: {
-              color: '#4caf50',
-            },
-          },
-          {
-            name: 'Negativ',
-            icon: 'circle',
-            itemStyle: {
-              color: '#f44336',
-            },
-          },
-          {
-            name: 'Neutru',
-            icon: 'circle',
-            itemStyle: {
-              color: '#9e9e9e',
-            },
-          },
-        ],
+      top: 'bottom',
+      itemGap: 20,
+      textStyle: {
+        color: '#000' // Set legend text color to black
       },
+      data: [
+        {
+          name: 'Pozitiv',
+          icon: 'circle',
+          itemStyle: {
+            color: '#4caf50',
+          },
+        },
+        {
+          name: 'Negativ',
+          icon: 'circle',
+          itemStyle: {
+            color: '#f44336',
+          },
+        },
+        {
+          name: 'Neutru',
+          icon: 'circle',
+          itemStyle: {
+            color: '#9e9e9e',
+          },
+        },
+      ],
+    },
     grid: {
       left: '3%',
       right: '4%',
@@ -83,12 +89,18 @@ function SourceEmotionDistributionOverTimeChart({ sourceId }) {
       {
         type: 'category',
         boundaryGap: false,
-        data: chartData.map((entry) => format(new Date(entry.date), 'dd MMM yyyy', { locale: ro })),
+        data: chartData.map((entry) => format(entry.date, 'dd MMM yyyy', { locale: ro })),
+        axisLabel: {
+          color: '#000' // Set x-axis label color to black
+        }
       },
     ],
     yAxis: [
       {
         type: 'value',
+        axisLabel: {
+          color: '#000' // Set y-axis label color to black
+        }
       },
     ],
     series: [
@@ -174,6 +186,9 @@ function SourceEmotionDistributionOverTimeChart({ sourceId }) {
         data: chartData.map((entry) => entry.neutral),
       },
     ],
+    textStyle: {
+      color: '#000' // Default text color for the entire chart
+    }
   });
 
   return (
@@ -184,6 +199,6 @@ function SourceEmotionDistributionOverTimeChart({ sourceId }) {
       />
     </div>
   );
-}
+};
 
-export default SourceEmotionDistributionOverTimeChart;
+export default MyInterestsCalendarChart;
