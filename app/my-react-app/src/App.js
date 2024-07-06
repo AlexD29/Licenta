@@ -52,8 +52,8 @@ function App() {
       <AuthProvider>
         <Navbar email={email} />
         <Routes>
-          <Route path="/" element={<Articles />} />
-          <Route path="/page/:page" element={<Articles />} />
+          <Route path="/" element={<Articles userId={userId}/>} />
+          <Route path="/page/:page" element={<Articles userId={userId}/>} />
           <Route path="/article/:id" element={<ArticleDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

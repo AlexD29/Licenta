@@ -63,7 +63,7 @@ const Explore = () => {
                             </div>
                         </li>
                         <li className="elections-list-item">
-                            <img src="./explore/alegeri-prezidențiale.jpg" alt="Image" className="list-image" />
+                            <img src="./explore/alegeri-prezidentiale.jpg" alt="Image" className="list-image" />
                             <div className='elections-text-div'>
                                 <p>Alegeri Prezidențiale</p>
                                 <p>15 și 29 Septembrie</p>

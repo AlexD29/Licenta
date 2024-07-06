@@ -11,12 +11,18 @@
 }
 
 .home-left-side{
-    width:60%;
-    margin-right: 5%;
+    width:57.5%;
+    margin-right: 2.5%;
 }
 
 .home-right-side{
-  width: 40%;
+  width: 45%;
+}
+
+.home-page-hr{
+  border: none;
+    border-top: 2px solid #04248c;
+    margin: -3rem 15% 3rem 15%;
 }
 
 
@@ -111,15 +117,15 @@
 
 /* Emotion-based colors with gradients */
 .first-article-image-div.positive::before {
-  background: linear-gradient(to right, rgba(0, 128, 0, 0), rgba(0, 128, 0, 0.5), rgba(0, 128, 0, 0));
+  background: linear-gradient(to right, rgba(0, 128, 0, 0.5), rgba(0, 128, 0, 0), rgba(0, 128, 0, 0.5));
 }
 
 .first-article-image-div.negative::before {
-  background: linear-gradient(to right, rgba(255, 0, 0, 0), rgba(255, 0, 0, 0.5), rgba(255, 0, 0, 0));
+  background: linear-gradient(to right, rgba(255, 0, 0, 0.5), rgba(255, 0, 0, 0), rgba(255, 0, 0, 0.5));
 }
 
 .first-article-image-div.neutral::before {
-  background: linear-gradient(to right, rgba(128, 128, 128, 0), rgba(128, 128, 128, 0.5), rgba(128, 128, 128, 0));
+  background: linear-gradient(to right, rgba(128, 128, 128, 0.5), rgba(128, 128, 128, 0), rgba(128, 128, 128, 0.5));
 }
 
 

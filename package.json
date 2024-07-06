@@ -17,5 +17,8 @@
     "recharts": "^2.12.7",
     "stream-browserify": "^3.0.0",
     "vibrant": "^0.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }

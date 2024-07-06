@@ -15,9 +15,9 @@ function ArticlesTodayEmotionsPiechart() {
         setTotalArticles(total_articles);
 
         const emotionsCount = {
-          Positive: positive_articles,
+          Pozitive: positive_articles,
           Negative: negative_articles,
-          Neutral: neutral_articles
+          Neutre: neutral_articles
         };
 
         const colors = ['#18b52a', '#ff1100', '#597499'];
@@ -38,12 +38,19 @@ function ArticlesTodayEmotionsPiechart() {
 
   const getOption = () => ({
     title: {
-      text: `Article postate astăzi: ${totalArticles}`,
-      left: 'center'
+      text: `${totalArticles} articole postate astăzi`,
+      left: 'center',
+      textStyle: {
+        fontSize: 32, // Adjust this value to make the title bigger
+        color: '#000' // Set the title text color to black
+      }
     },
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b} : {c} ({d}%)'
+      formatter: '{a} <br/>{b} : {c} ({d}%)',
+      textStyle: {
+        color: '#000' // Set the tooltip text color to black
+      }
     },
     series: [
       {
@@ -53,14 +60,21 @@ function ArticlesTodayEmotionsPiechart() {
         center: ['50%', '50%'],
         data: emotionsData,
         label: {
-          formatter: '{b}'
+          formatter: '{b}',
+          textStyle: {
+            color: '#000' // Set the series label text color to black
+          }
         }
       }
-    ]
+    ],
+    textStyle: {
+      color: '#000' // Set the global text color to black as a fallback
+    }
   });
 
+
   return (
-    <div className='chart' style={{ textAlign: 'center' }}>
+    <div className='articles-today-chart' style={{ textAlign: 'center' }}>
       <ReactEcharts option={getOption()} style={{ height: 450, width: 450 }} />
     </div>
   );

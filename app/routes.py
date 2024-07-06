@@ -53,6 +53,7 @@ def get_articles():
 
         cur = g.db_cursor
 
+        # Step 1: Fetch the articles
         cur.execute("""
             SELECT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
                    s.name AS source_name, s.image_url AS source_image_url
@@ -64,6 +65,8 @@ def get_articles():
         articles = cur.fetchall()
 
         articles_list = []
+        article_ids = [article[0] for article in articles]
+
         for article in articles:
             cur.execute("""
                 SELECT tag_text
@@ -100,9 +103,92 @@ def get_articles():
                 'emotion': article[8],
                 'source_name': article[9],
                 'source_image_url': article[10]
-                
             }
             articles_list.append(article_dict)
+
+        # Step 2: Retrieve related entities for the articles
+        if article_ids:
+            cur.execute("""
+                WITH article_tags AS (
+                    SELECT t.article_id, t.id, t.tag_text
+                    FROM tags t
+                    WHERE t.article_id = ANY(%s)
+                ),
+                all_entities AS (
+                    SELECT
+                        at.article_id,
+                        'politician' AS entity_type,
+                        tp.politician_id AS entity_id,
+                        CONCAT(p.first_name, ' ', p.last_name) AS entity_name,
+                        p.image_url
+                    FROM article_tags at
+                    JOIN tag_politician tp ON at.tag_text = (
+                        SELECT t2.tag_text
+                        FROM tags t2
+                        WHERE t2.id = tp.tag_id
+                    )
+                    JOIN politicians p ON tp.politician_id = p.id
+                    UNION ALL
+                    SELECT
+                        at.article_id,
+                        'political-party' AS entity_type,
+                        tp.political_party_id AS entity_id,
+                        pp.abbreviation AS entity_name,
+                        pp.image_url
+                    FROM article_tags at
+                    JOIN tag_political_parties tp ON at.tag_text = (
+                        SELECT t2.tag_text
+                        FROM tags t2
+                        WHERE t2.id = tp.tag_id
+                    )
+                    JOIN political_parties pp ON tp.political_party_id = pp.id
+                    UNION ALL
+                    SELECT
+                        at.article_id,
+                        'city' AS entity_type,
+                        tc.city_id AS entity_id,
+                        c.name AS entity_name,
+                        c.image_url
+                    FROM article_tags at
+                    JOIN tag_city tc ON at.tag_text = (
+                        SELECT t2.tag_text
+                        FROM tags t2
+                        WHERE t2.id = tc.tag_id
+                    )
+                    JOIN cities c ON tc.city_id = c.id
+                ),
+                entity_counts AS (
+                    SELECT
+                        entity_type,
+                        entity_id,
+                        entity_name,
+                        image_url,
+                        COUNT(*) as entity_count
+                    FROM all_entities
+                    GROUP BY entity_type, entity_id, entity_name, image_url
+                )
+                SELECT
+                    entity_type,
+                    entity_id,
+                    entity_name,
+                    image_url,
+                    entity_count
+                FROM entity_counts
+                ORDER BY entity_type, entity_count DESC
+            """, (article_ids,))
+            related_entities = cur.fetchall()
+
+            # Step 3: Organize and count the entities
+            top_entities = {'politician': [], 'political-party': [], 'city': []}
+
+            for entity in related_entities:
+                entity_type, entity_id, entity_name, image_url, entity_count = entity
+                top_entities[entity_type].append({
+                    'entity_id': entity_id,
+                    'entity_name': entity_name,
+                    'image_url': image_url,
+                    'entity_count': entity_count
+                })
 
         cur.execute("SELECT COUNT(*) FROM articles")
         total_articles = cur.fetchone()[0]
@@ -111,7 +197,8 @@ def get_articles():
 
         return jsonify({
             'articles': articles_list,
-            'totalPages': total_pages
+            'totalPages': total_pages,
+            'top_entities': top_entities
         })
 
     except Exception as e:

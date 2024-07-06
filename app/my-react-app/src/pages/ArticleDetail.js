@@ -5,6 +5,7 @@ import './ArticleDetail.css';
 import Footer from 'D:/Documents/Facultate/Licenta/app/my-react-app/src/Footer';
 import SourceArticlesCountsWaterfallChart from 'charts/Source/ArticlesCountsWaterfallChart';
 import ArticlesLastWeekChart from 'charts/Politician/ArticlesLastWeekChart';
+import RelatedEntities from 'charts/ArticleDetails/RelatedEntities';
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -87,6 +88,7 @@ function ArticleDetail() {
     <div>
       <div className='main-container-article-details'>
         <div className='first-part'>
+          <RelatedEntities articleId={id} />
           <SourceArticlesCountsWaterfallChart sourceId={9}/>
         </div>
         <div className="article-container">

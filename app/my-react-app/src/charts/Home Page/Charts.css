@@ -1,0 +1,263 @@
+.fact-container {
+  margin: 20px 0 20px 20px;
+  padding: 10px 20px 15px 20px;
+  border-radius: 10px;
+  transition: background-color 0.5s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.fact-box {
+  color: black;
+  padding: 10px 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fact-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 10px;
+}
+
+.fact-content {
+  font-size: 15px;
+  color: black;
+  line-height: 1.6;
+}
+
+
+.articles-today-chart {
+  height: 50%;
+}
+
+
+/* TOP ENTITY PAIRS*/
+
+.top-entity-pairs {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  margin: 0 20px 20px 20px;
+  border: 2px solid #04248c;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow */
+  background-color: #ffffff; /* Set background color */
+  overflow: hidden; 
+}
+
+.title-div-box{
+  background-color: #04248c;
+}
+
+.box-title{
+  color: white;
+  font-size: 20px;
+  padding: 0 10px;
+}
+
+.entity-pair {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 10px 0 10px;
+  border-top: 2px solid #04248c;
+}
+
+.entity1,
+.entity2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 7rem;
+  cursor: pointer;
+}
+
+.entity-image-box {
+  margin-right: 10px;
+  height: 4rem;
+  width: 4rem;
+  object-fit: cover;
+}
+
+.entity-text{
+  margin: 10px;
+}
+
+.stats {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  font-weight: bold;
+}
+
+.plus-svg-div {
+  display: flex;
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+  margin: 0 10px;
+}
+
+.plus-svg {
+  width: 2rem;
+  height: auto;
+  fill: #04248c; /* Change the color here */
+}
+
+.total-text{
+  font-size: 20px;
+}
+
+.stats .positive{
+  color: green;
+}
+
+.stats .negative{
+  color: red;
+}
+
+.stats .neutral{
+  color: gray;
+}
+
+
+/* ENTITY SUGGESTIONS */
+
+.top-entity-suggestions{
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  border: 2px solid black;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); /* Add shadow */
+  background-color: #ffffff; /* Set background color */
+  overflow: hidden;
+  margin: 20px;
+}
+
+.box-title-div{
+  background-color: #f7f1f1;
+}
+
+.entity-list{
+  display: flex;
+  flex-direction: column;
+}
+
+.entity-item{
+  height: 4.5rem;
+  display: flex;
+  flex-direction: row;
+  padding: 10px 1rem;
+  align-items: center;
+  cursor: pointer;
+  justify-content: space-between;
+}
+
+
+.entity-image-suggestions{
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+}
+
+/* Default button styles */
+.profile-button {
+  background-color: #ffffff;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 5px;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Default icon colors */
+.profile-button svg path {
+  fill: white;
+}
+
+/* Favorited button styles */
+.profile-button.follow-button.favorited {
+  background-color: #ffcccc; /* light red background */
+  color: #ff0000; /* red text */
+}
+
+.profile-button.follow-button.favorited svg path {
+  fill: #ff0000; /* red icon */
+}
+
+/* Hidden button styles */
+.profile-button.hide-button.hidden {
+  background-color: #cccccc; /* light grey background */
+  color: #666666; /* dark grey text */
+}
+
+.profile-button.hide-button.hidden svg path {
+  fill: #666666; /* dark grey icon */
+}
+
+/* Additional styles for hover and active states */
+.profile-button:hover {
+  background-color: #f0f0f0; /* light grey on hover */
+}
+
+.profile-button:active {
+  background-color: #e0e0e0; /* slightly darker grey on active */
+}
+
+
+/*MOST POSITIVE/NEGATIVE/NEUTRAL in the last 7 days > 15 articles*/
+
+.most-container{
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  background-color: #ffffff; /* Set background color */
+  overflow: hidden;
+  margin: 0 20px;
+}
+
+.most-chart-title{
+  margin:0;
+}
+
+.most-entity-item{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  height: 4.5rem;
+  padding: 10px 1rem;
+  cursor: pointer;
+}
+
+.most-image{
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+}
+
+.most-name{
+  margin:0;
+}
+
+.most-name-category{
+  margin:0;
+  font-style: italic;
+}
+
+.most-percentage-text{
+  margin-right: 0.3rem;
+}
+
+.percentage-svg{
+  width: 3rem;
+  height: auto;
+}
+
+.percentage-div{
+  display: flex;
+  flex-direction: row;
+}

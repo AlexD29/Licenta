@@ -308,7 +308,7 @@ def insert_tag_and_entity(tag, entity_id, table_name, article_id, cur, conn, pub
         WHERE tag_text = %s
     """, (tag,))
     result = cur.fetchone()
-
+    
     cur.execute("""
         INSERT INTO tags (article_id, tag_text)
         VALUES (%s, %s)
@@ -752,8 +752,11 @@ def scrape_article_mediafax(article_url, title):
         article_text = [p.get_text(strip=True) for p in content_div.find_all('p')]
 
         image_div = soup.find('div', class_='ArticleImageContainer')
-        image_url_with_dimensions = image_div.find('img')['data-src']
-        image_url = remove_image_dimensions(image_url_with_dimensions)
+        if image_div and image_div.find('img'):
+            image_url_with_dimensions = image_div.find('img')['data-src']
+            image_url = remove_image_dimensions(image_url_with_dimensions)
+        else:
+            image_url = None
 
         return {
             'author': author_name,
@@ -1388,7 +1391,17 @@ def scrape_hotnews():
                             print("\nHotNews - UPDATED.\n")
                             break
 
-                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        title = article_data['title']
+                        article_text = article_data['article_text']
+                        if article_text:
+                            if len(article_text) >= 2:
+                                content = f"{title} {article_text[0]} {article_text[1]}"
+                            elif len(article_text) == 1:
+                                content = f"{title} {article_text[0]}"
+                            else:
+                                content = title
+                        else:
+                            content = title
                         emotion_label = predict_label(content, tokenizer, model)
 
                         cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
@@ -1632,6 +1645,11 @@ def scrape_article_gandul(article_url):
             article_tags = []
         tags = set(title_tags).union(article_tags)
 
+        # print("Title:\n", title)
+        # print("Tag-uri extrase din titlu:\n", title_tags)
+        # print("Tag-uri gasite:\n", article_tags)
+        # print("Tag-uri totale:\n", tags)
+
         image_element = soup.find('div', class_='single__media').findChildren('picture', recursive=False)
         if image_element:
             img_tag = image_element[0].find('img')
@@ -1706,7 +1724,17 @@ def scrape_gandul():
                         if article_image_url is None:
                             article_image_url = backup_image
 
-                        content = f"{article_data['title']} {article_data['article_text'][0]} {article_data['article_text'][1]}"
+                        title = article_data['title']
+                        article_text = article_data['article_text']
+                        if article_text:
+                            if len(article_text) >= 2:
+                                content = f"{title} {article_text[0]} {article_text[1]}"
+                            elif len(article_text) == 1:
+                                content = f"{title} {article_text[0]}"
+                            else:
+                                content = title
+                        else:
+                            content = title                        
                         emotion_label = predict_label(content, tokenizer, model)
 
                         cur.execute("SELECT id FROM sources WHERE name = %s", (source_name,))
@@ -1949,7 +1977,10 @@ def scrape_article_antena3(article_url, title):
             article_tags = []
         tags = set(title_tags).union(article_tags)
 
-        string_published_date = info_spans[1].text.strip()
+        if len(info_spans) > 0:
+            string_published_date = info_spans[-1].text.strip()
+        else:
+            string_published_date = None
         months = {
             'Ianuarie': 1, 'Februarie': 2, 'Martie': 3, 'Aprilie': 4,
             'Mai': 5, 'Iunie': 6, 'Iulie': 7, 'August': 8,
@@ -2076,11 +2107,11 @@ def scrape_antena3():
     cur.close()
     conn.close()
    
-# source_scrapers = [scrape_gandul]
+# source_scrapers = [scrape_hotnews]
 source_scrapers = [scrape_ziaredotcom, scrape_adevarul, scrape_stiripesurse, scrape_digi24, 
-                   scrape_protv, scrape_observator,  scrape_gandul, scrape_bursa, scrape_antena3, scrape_mediafax]
+                   scrape_protv, scrape_observator,  scrape_gandul, scrape_bursa, scrape_antena3, scrape_hotnews]
 
-#scrape_hotnews, - nu mai merge
+# mediafax iar are probleme cu get_text la date
 #scrape_mediafax() # - are o problema la schimbarea paginii + aparent are problema ca la un moment dat zice ca date
 # element e None....
 

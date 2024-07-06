@@ -1,28 +1,54 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import { Link, useParams } from "react-router-dom";
 import "./Articles.css";
 import Footer from "./Footer";
-import ArticlesTodayEmotionsPiechart from "charts/ArticlesTodayEmotionsPiechart";
+import { shuffle } from 'lodash';
+import ArticlesTodayEmotionsPiechart from "charts/Home Page/ArticlesTodayEmotionsPiechart";
+import TopPoliticiansChart from "charts/Home Page/TopPoliticiansChart";
+import TopCitiesChart from "charts/Home Page/TopCitiesChart";
+import TopPoliticalPartiesChart from "charts/Home Page/TopPoliticalPartiesChart";
+import ArticlesDistributionLast30Days from "charts/Home Page/ArticlesDistributionLast30Days";
+import TopSourcesChart from "charts/Home Page/TopSourcesChart";
+import RandomFactComponent from "charts/Home Page/RandomFactComponent";
+import ElectionChartComponent from "charts/Home Page/ElectionChartComponent";
+import ArticleLengthDistributionChart from "charts/Home Page/ArticleLengthDistributionChart";
+import TopAuthorsPieChart from "charts/Home Page/TopAuthorsPieChart";
+import SentimentOverTimeChart from "charts/Home Page/SentimentOverTimeChart";
+import TopEntityPairs from "charts/Home Page/TopEntityPairs";
+import TopEntitySuggestions from "charts/Home Page/TopEntitySuggestions";
+import RelatedEntities from "charts/Home Page/RelatedEntities";
 
 function formatDate(dateString) {
-  const date = new Date(dateString);
-  const today = new Date();
-  const yesterday = new Date(today);
+  // Parse the input date string
+  const parsedDate = new Date(dateString);
 
-  yesterday.setDate(yesterday.getDate() - 1);
+  // Ensure the parsed date is in UTC
+  const date = new Date(parsedDate.getUTCFullYear(), 
+                        parsedDate.getUTCMonth(), 
+                        parsedDate.getUTCDate(), 
+                        parsedDate.getUTCHours(), 
+                        parsedDate.getUTCMinutes(), 
+                        parsedDate.getUTCSeconds());
+
+  // Create a UTC version of today and yesterday
+  const today = new Date(Date.now());
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
 
   if (date.toDateString() === today.toDateString()) {
     // Format for today's date
     const options = { hour: "numeric", minute: "numeric", hour12: false };
-    return `Astăzi, ${date.toLocaleTimeString("ro-RO", options)}`;
+    const formattedTime = date.toLocaleTimeString("ro-RO", options);
+    return `Astăzi, ${formattedTime}`;
   } else if (date.toDateString() === yesterday.toDateString()) {
     // Format for yesterday's date
     const options = { hour: "numeric", minute: "numeric", hour12: false };
-    return `Ieri, ${date.toLocaleTimeString("ro-RO", options)}`;
+    const formattedTime = date.toLocaleTimeString("ro-RO", options);
+    return `Ieri, ${formattedTime}`;
   } else {
     // Format the date to desired format, e.g., "19 aprilie 2024, 15:30"
-    const dateFormat = { day: "numeric", month: "long", year: "numeric" }; // Change '2-digit' to 'numeric'
+    const dateFormat = { day: "numeric", month: "long", year: "numeric" };
     const timeFormat = { hour: "numeric", minute: "numeric", hour12: false };
     const formattedDate = date.toLocaleDateString("ro-RO", dateFormat);
     const formattedTime = date.toLocaleTimeString("ro-RO", timeFormat);
@@ -127,27 +153,95 @@ function truncateTitle(title, maxLength) {
   return `${title.substring(0, maxLength)}...`;
 }
 
-export { formatDate, renderPagination, truncateTitle };
+const formatDateSecond = (date) => {
+  const year = date.getFullYear();
+  let month = date.getMonth() + 1;
+  if (month < 10) {
+    month = `0${month}`;
+  }
+  let day = date.getDate();
+  if (day < 10) {
+    day = `0${day}`;
+  }
+  return `${year}-${month}-${day}`;
+};
 
-function Articles() {
+export { formatDate, formatDateSecond, renderPagination, truncateTitle };
+
+function Articles({ userId }) {
   const [articles, setArticles] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [topEntities, setTopEntities] = useState({
+    politician: [],
+    'political-party': [],
+    city: [],
+  });
+  const [favorites, setFavorites] = useState([]);
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false);
 
   const { page } = useParams();
   const pageNumber = parseInt(page, 10) || 1;
 
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  // const startDate = formatDateSecond(yesterday);
+  // const endDate = formatDateSecond(today);
+
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
+
+  const startDate = formatDateSecond(sevenDaysAgo);
+  const endDate = formatDateSecond(today);
+
   useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!userId) {
+        console.warn("User ID not available yet. Cannot fetch favorites.");
+        return;
+      }
+      try {
+        const response = await axios.get(`http://localhost:8000/api/favorites?user_id=${userId}`);
+        setFavorites(response.data);
+        setFavoritesLoaded(true);  // Indicate that favorites have been loaded
+      } catch (error) {
+        console.error("Error fetching favorites:", error);
+      }
+    };
+
+    fetchFavorites();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!favoritesLoaded) {
+      return;  // Wait until favorites are loaded
+    }
+
     const fetchArticles = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:8000/api/articles?page=${pageNumber}&limit=${20}`
-        );
-        setArticles(response.data.articles);
-        console.log(articles);
-        setTotalPages(response.data.totalPages);
-        setCurrentPage(parseInt(page, 10) || 1);
+        const response = await axios.get(`http://localhost:8000/api/articles?page=${pageNumber}&limit=20`);
+        const { articles, top_entities, totalPages } = response.data;
+
+        // Filter related entities to remove favorites and keep only the top 3
+        const filteredEntities = {
+          politician: top_entities.politician
+            .filter(entity => !favorites.some(fav => fav[0] === entity.entity_id && fav[1] === 'politician'))
+            .slice(0, 3),
+          'political-party': top_entities['political-party']
+            .filter(entity => !favorites.some(fav => fav[0] === entity.entity_id && fav[1] === 'political-party'))
+            .slice(0, 3),
+          city: top_entities.city
+            .filter(entity => !favorites.some(fav => fav[0] === entity.entity_id && fav[1] === 'city'))
+            .slice(0, 3),
+        };
+
+        setArticles(articles);
+        setTopEntities(filteredEntities);
+        setTotalPages(totalPages);
+        setCurrentPage(pageNumber);
       } catch (error) {
         console.error("Error fetching articles:", error);
       } finally {
@@ -156,10 +250,50 @@ function Articles() {
     };
 
     fetchArticles();
-  }, [page]);
+  }, [favoritesLoaded, pageNumber]);
+
+  const fetchFavorites = async () => {
+    if (!userId) {
+      console.warn("User ID not available yet. Cannot fetch favorites.");
+      return;
+    }
+    try {
+      const response = await axios.get(`http://localhost:8000/api/favorites?user_id=${userId}`);
+      setFavorites(response.data);
+      setFavoritesLoaded(true);  // Indicate that favorites have been loaded
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+    }
+  };
 
   useEffect(() => {
   }, [currentPage, pageNumber]);
+
+  const charts = useMemo(() => ([
+    <SentimentOverTimeChart key="SentimentOverTimeChart" />,
+    <ArticleLengthDistributionChart key="ArticleLengthDistributionChart" />,
+    <TopEntitySuggestions key="TopEntitySuggestions-1" entityType={topEntities.politician[0]} userId={userId} favorites={favorites} entities={topEntities.politician} />,
+    <ArticlesDistributionLast30Days key="ArticlesDistributionLast30Days" />,
+    <TopEntitySuggestions key="TopEntitySuggestions-2" entityType={topEntities['political-party'][0]} userId={userId} favorites={favorites} entities={topEntities['political-party']} />,
+    <TopCitiesChart key="TopCitiesChart" />,
+    <TopPoliticiansChart key="TopPoliticiansChart" />,
+    <RelatedEntities key="RelatedEntities" startDate={startDate} endDate={endDate} />,
+    <TopEntityPairs key="TopEntityPairs" />,
+    <TopEntitySuggestions key="TopEntitySuggestions-3" entityType={topEntities.city[0]} userId={userId} favorites={favorites} entities={topEntities.city} />,
+    <TopAuthorsPieChart key="TopAuthorsPieChart" />,
+    <ElectionChartComponent key="ElectionChartComponent" />,
+    <TopSourcesChart key="TopSourcesChart" />,
+    <TopPoliticalPartiesChart key="TopPoliticalPartiesChart" />
+  ]), [topEntities, startDate, endDate, userId, favorites]);
+
+  const shuffledCharts = useMemo(() => {
+    const shuffled = shuffle(charts);
+    return {
+      firstPart: shuffled.slice(0, 7),
+      thirdPart: shuffled.slice(7, 14)
+    };
+  }, [charts]);
+
 
   const [firstArticle, ...otherArticles] = articles;
 
@@ -216,11 +350,19 @@ function Articles() {
           </div>
           <div className="home-right-side">
             <ArticlesTodayEmotionsPiechart />
+            <RandomFactComponent />
           </div>
         </div>
       </div>
+      <hr className="home-page-hr"/>
       <div className="home-second-part">
-        <div className="first-part"></div>
+        <div className="first-part">
+            {shuffledCharts.firstPart.map((chart, index) => (
+              <div key={index} className="chart-container">
+                {chart}
+              </div>
+            ))}
+        </div>
         <div className="second-part">
           <div className="articles-part">
             {otherArticles.map((article) => (
@@ -261,7 +403,13 @@ function Articles() {
             ))}
           </div>
         </div>
-        <div className="third-part"></div>
+        <div className="third-part">
+          {shuffledCharts.thirdPart.map((chart, index) => (
+            <div key={index} className="chart-container">
+              {chart}
+            </div>
+          ))}
+        </div>
       </div>
       <nav className="pagination gutter-col-xs-0">
         <div className="flex flex-middle">

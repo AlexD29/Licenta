@@ -6,14 +6,22 @@ import { formatDate } from '../Articles';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { truncateTitle } from '../Articles';
 
-const calculateRemainingDays = (date) => {
-    const now = new Date();
-    const diffTime = Math.abs(date - now);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+const formatPastDate = (date) => {
+    const options = { day: 'numeric', month: 'long' };
+    return date.toLocaleDateString('ro-RO', options);
 };
 
-export {calculateRemainingDays};
+const calculateRemainingDays = (date) => {
+    const now = new Date();
+    const diffTime = date - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+        return `Alegerile au fost pe ${formatPastDate(date)}`;
+    }
+    return `${diffDays} zile rămase`;
+};
+
+export {calculateRemainingDays, formatPastDate};
 
 const Pagination = ({ currentPage, totalPages, category }) => {
     const renderPagination = (currentPage, totalPages) => {
@@ -174,7 +182,7 @@ const Elections = () => {
                                 <img src={`${process.env.PUBLIC_URL}/explore/alegeri-locale.jpg`} alt="Image" className="alegeri-list-image" />
                                 <div className="alegeri-list-text">
                                     <p>Alegeri Locale</p>
-                                    <p>{calculateRemainingDays(electionDates['Alegeri Locale'])} zile rămase</p>
+                                    <p>{calculateRemainingDays(electionDates['Alegeri Locale'])}</p>
                                 </div>
                             </li>
                         </Link>
@@ -186,7 +194,7 @@ const Elections = () => {
                                 <img src={`${process.env.PUBLIC_URL}/explore/alegeri-europarlamentare.jpg`} alt="Image" className="alegeri-list-image" />
                                 <div className="alegeri-list-text">
                                     <p>Alegeri Europarlamentare</p>
-                                    <p>{calculateRemainingDays(electionDates['Alegeri Europarlamentare'])} zile rămase</p>
+                                    <p>{calculateRemainingDays(electionDates['Alegeri Europarlamentare'])}</p>
                                 </div>
                             </li>
                         </Link>
@@ -195,10 +203,10 @@ const Elections = () => {
                                 className={`alegeri-list-item ${selectedCategory === 'alegeri-prezidentiale' ? 'selected' : ''}`} 
                                 onClick={() => handleClick('alegeri-prezidentiale')}
                             >
-                                <img src={`${process.env.PUBLIC_URL}/explore/alegeri-prezidențiale.jpg`} alt="Image" className="alegeri-list-image" />
+                                <img src={`${process.env.PUBLIC_URL}/explore/alegeri-prezidentiale.jpg`} alt="Image" className="alegeri-list-image" />
                                 <div className="alegeri-list-text">
                                     <p>Alegeri Prezidențiale</p>
-                                    <p>{calculateRemainingDays(electionDates['Alegeri Prezidențiale'])} zile rămase</p>
+                                    <p>{calculateRemainingDays(electionDates['Alegeri Prezidențiale'])}</p>
                                 </div>
                             </li>
                         </Link>
@@ -210,7 +218,7 @@ const Elections = () => {
                                 <img src={`${process.env.PUBLIC_URL}/explore/alegeri-parlamentare.jpg`} alt="Image" className="alegeri-list-image" />
                                 <div className="alegeri-list-text">
                                     <p>Alegeri Parlamentare</p>
-                                    <p>{calculateRemainingDays(electionDates['Alegeri Parlamentare'])} zile rămase</p>
+                                    <p>{calculateRemainingDays(electionDates['Alegeri Parlamentare'])}</p>
                                 </div>
                             </li>
                         </Link>
