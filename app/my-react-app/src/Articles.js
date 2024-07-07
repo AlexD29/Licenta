@@ -252,20 +252,6 @@ function Articles({ userId }) {
     fetchArticles();
   }, [favoritesLoaded, pageNumber]);
 
-  const fetchFavorites = async () => {
-    if (!userId) {
-      console.warn("User ID not available yet. Cannot fetch favorites.");
-      return;
-    }
-    try {
-      const response = await axios.get(`http://localhost:8000/api/favorites?user_id=${userId}`);
-      setFavorites(response.data);
-      setFavoritesLoaded(true);  // Indicate that favorites have been loaded
-    } catch (error) {
-      console.error("Error fetching favorites:", error);
-    }
-  };
-
   useEffect(() => {
   }, [currentPage, pageNumber]);
 

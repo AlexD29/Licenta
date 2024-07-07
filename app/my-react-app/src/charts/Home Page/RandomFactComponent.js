@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import "./Charts.css";
+import "../Charts.css";
 
 const RandomFactComponent = () => {
     const [randomFact, setRandomFact] = useState('');

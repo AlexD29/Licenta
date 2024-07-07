@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import "./Charts.css";
+import "../Charts.css";
 
 const TopEntityPairs = () => {
   const [topEntityPairs, setTopEntityPairs] = useState([]);

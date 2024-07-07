@@ -3,8 +3,14 @@ from flask import Blueprint, jsonify, request, g
 from datetime import datetime, timedelta
 from collections import defaultdict
 import re
-
 import psycopg2
+
+from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import spacy
+
+nlp = spacy.load("ro_core_news_sm")
 
 statistics_bp = Blueprint('statistics', __name__)
 
@@ -719,7 +725,7 @@ def get_related_entities(article_id):
             WHERE t.article_id = %s
         ),
         related_politicians AS (
-            SELECT
+            SELECT DISTINCT
                 at.id AS tag_id,
                 at.tag_text,
                 tp.politician_id,
@@ -734,7 +740,7 @@ def get_related_entities(article_id):
             JOIN politicians p ON tp.politician_id = p.id
         ),
         related_political_parties AS (
-            SELECT
+            SELECT DISTINCT
                 at.id AS tag_id,
                 at.tag_text,
                 tp.political_party_id,
@@ -749,7 +755,7 @@ def get_related_entities(article_id):
             JOIN political_parties pp ON tp.political_party_id = pp.id
         ),
         related_cities AS (
-            SELECT
+            SELECT DISTINCT
                 at.id AS tag_id,
                 at.tag_text,
                 tc.city_id,
@@ -769,14 +775,14 @@ def get_related_entities(article_id):
             politician_name AS entity_name,
             image_url
         FROM related_politicians
-        UNION ALL
+        UNION
         SELECT 
             'political-party' AS entity_type,
             political_party_id AS entity_id,
             abbreviation AS entity_name,
             image_url
         FROM related_political_parties
-        UNION ALL
+        UNION
         SELECT 
             'city' AS entity_type,
             city_id AS entity_id,
@@ -788,15 +794,19 @@ def get_related_entities(article_id):
         cur.execute(query, (article_id,))
         rows = cur.fetchall()
 
+        seen_entities = set()
         related_entities = []
         for row in rows:
             entity_type, entity_id, entity_name, image_url = row
-            related_entities.append({
-                'entity_type': entity_type,
-                'entity_id': entity_id,
-                'entity_name': entity_name,
-                'image_url': image_url
-            })
+            entity_key = (entity_type, entity_id)
+            if entity_key not in seen_entities:
+                seen_entities.add(entity_key)
+                related_entities.append({
+                    'entity_type': entity_type,
+                    'entity_id': entity_id,
+                    'entity_name': entity_name,
+                    'image_url': image_url
+                })
 
         return jsonify({'related_entities': related_entities})
 
@@ -1144,6 +1154,7 @@ def get_top_entity_pairs():
 
 
 
+
 ### ENTITIES PAGE ###
 
 @statistics_bp.route('/api/articles/emotion-distribution', methods=['GET'])
@@ -1190,3 +1201,327 @@ def get_emotion_distribution():
     except Exception as e:
         print("Error fetching emotion distribution:", e)
         return jsonify({"error": "Failed to fetch emotion distribution"}), 500
+
+
+### ARTICLE DETAILS ###
+
+@statistics_bp.route('/api/entity-articles', methods=['GET'])
+def get_entity_articles_by_date_range():
+    try:
+        entity_id = request.args.get('entityId')
+        entity_type = request.args.get('entityType')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Validate required parameters
+        if not entity_id or not entity_type:
+            return jsonify({"error": "Missing required parameters: entityId and entityType"}), 400
+
+        # Set default dates if not provided
+        if not start_date:
+            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+
+        if not end_date:
+            end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, microseconds=-1)
+
+        # Calculate the date range for the last 7 days
+        seven_days_ago = datetime.now() - timedelta(days=7)
+
+        cur = g.db_cursor
+
+        # Step 1: Fetch tags for the specified entity
+        if entity_type == 'politician':
+            tags_query = """
+                SELECT t.tag_text
+                FROM tags t
+                JOIN tag_politician tp ON t.id = tp.tag_id
+                WHERE tp.politician_id = %s
+            """
+        elif entity_type == 'political-party':
+            tags_query = """
+                SELECT t.tag_text
+                FROM tags t
+                JOIN tag_political_parties tp ON t.id = tp.tag_id
+                WHERE tp.political_party_id = %s
+            """
+        elif entity_type == 'city':
+            tags_query = """
+                SELECT t.tag_text
+                FROM tags t
+                JOIN tag_city tc ON t.id = tc.tag_id
+                WHERE tc.city_id = %s
+            """
+        else:
+            return jsonify({"error": "Invalid entityType"}), 400
+
+        cur.execute(tags_query, (entity_id,))
+        tags = cur.fetchall()
+
+        if not tags:
+            return jsonify({'counts': {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0}})
+
+        # Extract tag texts
+        tag_texts = [tag[0] for tag in tags]
+
+        # Step 2: Retrieve all articles within the last 7 days that have these tags
+        articles_query = """
+            SELECT a.id, a.title, a.published_date, a.emotion
+            FROM articles a
+            JOIN tags t ON a.id = t.article_id
+            WHERE t.tag_text = ANY(%s) AND a.published_date BETWEEN %s AND %s
+        """
+        cur.execute(articles_query, (tag_texts, seven_days_ago, end_date))
+        articles = cur.fetchall()
+
+        if not articles:
+            return jsonify({'counts': {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0}})
+
+        # Step 3: Count articles by their type
+        counts = {
+            'total': len(articles),
+            'positive': 0,
+            'negative': 0,
+            'neutral': 0
+        }
+
+        for article in articles:
+            emotion = article[3]
+            if emotion == 'Positive':
+                counts['positive'] += 1
+            elif emotion == 'Negative':
+                counts['negative'] += 1
+            else:
+                counts['neutral'] += 1
+
+        return jsonify({
+            'entity_id': entity_id,
+            'entity_type': entity_type,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'counts': counts
+        })
+
+    except psycopg2.Error as e:
+        print("Error fetching entity articles:", e)
+        return jsonify({"error": "Failed to fetch entity articles"}), 500
+    except Exception as e:
+        print("Unexpected error:", e)
+        return jsonify({"error": "Unexpected error occurred"}), 500
+ 
+@statistics_bp.route('/api/article-analytics/<int:article_id>', methods=['GET'])
+def get_article_analytics(article_id):
+    try:
+        # Fetch the current article details
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT a.title
+            FROM articles a
+            WHERE a.id = %s
+        """, (article_id,))
+        current_article = cur.fetchone()
+        if not current_article:
+            return jsonify({"error": "Article not found"}), 404
+
+        current_article_title = current_article[0]
+
+        # Get the start and end dates from request parameters or default to the last 7 days
+        start_date = request.args.get('start')
+        end_date = request.args.get('end')
+
+        if not start_date or not end_date:
+            end_date = datetime.now().date()
+            start_date = end_date - timedelta(days=7)
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+        # Fetch all articles in the specified date range
+        cur.execute("""
+            SELECT a.id, a.title, a.emotion
+            FROM articles a
+            WHERE a.published_date BETWEEN %s AND %s
+        """, (start_date, end_date))
+        articles = cur.fetchall()
+
+        # Ensure articles list is not empty
+        if not articles:
+            return jsonify({"error": "No articles found in the specified date range"}), 404
+
+        # Preprocess article titles for Romanian
+        def preprocess_text_ro(text):
+            # Normalize text, remove non-alphanumeric characters, and lowercase
+            text = re.sub(r'[^\w\s]', '', text)
+            text = text.lower()
+            # Tokenize, lemmatize, and remove stopwords
+            doc = nlp(text)
+            tokens = [token.lemma_ for token in doc if not token.is_stop]
+            return ' '.join(tokens)
+
+        # Preprocess current article title
+        current_article_title = preprocess_text_ro(current_article_title)
+
+        # Preprocess all other article titles
+        article_titles = [preprocess_text_ro(article[1]) for article in articles]
+
+        # Vectorize article titles
+        vectorizer = TfidfVectorizer()
+        X = vectorizer.fit_transform([current_article_title] + article_titles)
+
+
+        # Calculate cosine similarity
+        similarities = cosine_similarity(X[0], X[1:]).flatten()
+
+        # Adjust similarity threshold
+        similarity_threshold = 0.15  # Adjust the threshold value as needed
+        similar_articles = [articles[idx] for idx in range(len(similarities)) if similarities[idx] > similarity_threshold]
+
+        # Count emotions for similar articles
+        emotion_counts = {'Positive': 0, 'Negative': 0, 'Neutral': 0}
+        for article in similar_articles:
+            emotion = article[2]
+            if emotion in emotion_counts:
+                emotion_counts[emotion] += 1
+
+        return jsonify({
+            "similar_articles_count": len(similar_articles),
+            "emotion_counts": emotion_counts
+        })
+
+    except Exception as e:
+        print("Error fetching article analytics:", e)
+        return jsonify({"error": "Failed to fetch article analytics"}), 500
+
+@statistics_bp.route('/api/entity-pair-analytics', methods=['GET'])
+def get_entity_pair_analytics():
+    try:
+        # Extract parameters from the request
+        entity1_id = request.args.get('entity1Id')
+        entity1_type = request.args.get('entity1Type')
+        entity2_id = request.args.get('entity2Id')
+        entity2_type = request.args.get('entity2Type')
+
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+
+        # Validate required parameters
+        if not entity1_id or not entity1_type or not entity2_id or not entity2_type:
+            return jsonify({"error": "Missing required parameters: entity1Id, entity1Type, entity2Id, entity2Type"}), 400
+
+        # Set default dates if not provided
+        if not start_date:
+            # Calculate 7 days ago
+            seven_days_ago = datetime.now() - timedelta(days=7)
+            start_date = seven_days_ago.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+
+        if not end_date:
+            end_date = datetime.now()
+        else:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1, microseconds=-1)
+
+        # Get the database cursor from the global context (assuming it's set up elsewhere)
+        cur = g.db_cursor
+
+        # Step 1: Fetch tags for entity 1
+        entity1_tags_query = get_tags_query(entity1_type, entity1_id)
+        cur.execute(entity1_tags_query, (entity1_id,))
+        entity1_tags = cur.fetchall()
+
+        if not entity1_tags:
+            return jsonify({'counts': {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0}})
+
+        entity1_tag_texts = [tag[0] for tag in entity1_tags]
+
+        # Step 2: Fetch tags for entity 2
+        entity2_tags_query = get_tags_query(entity2_type, entity2_id)
+        cur.execute(entity2_tags_query, (entity2_id,))
+        entity2_tags = cur.fetchall()
+
+        if not entity2_tags:
+            return jsonify({'counts': {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0}})
+
+        entity2_tag_texts = [tag[0] for tag in entity2_tags]
+
+        # Step 3: Retrieve articles containing both entity 1 and entity 2 within the specified date range
+        articles_query = """
+            SELECT a.id, a.title, a.published_date, a.emotion
+            FROM articles a
+            JOIN tags t1 ON a.id = t1.article_id
+            JOIN tags t2 ON a.id = t2.article_id
+            WHERE t1.tag_text = ANY(%s) AND t2.tag_text = ANY(%s)
+              AND a.published_date BETWEEN %s AND %s
+        """
+        cur.execute(articles_query, (entity1_tag_texts, entity2_tag_texts, start_date, end_date))
+        articles = cur.fetchall()
+
+        if not articles:
+            return jsonify({'counts': {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0}})
+
+        # Step 4: Count articles by their emotion
+        counts = {
+            'total': len(articles),
+            'positive': 0,
+            'negative': 0,
+            'neutral': 0
+        }
+
+        for article in articles:
+            emotion = article[3]
+            if emotion == 'Positive':
+                counts['positive'] += 1
+            elif emotion == 'Negative':
+                counts['negative'] += 1
+            else:
+                counts['neutral'] += 1
+
+        # Return JSON response
+        return jsonify({
+            'entity1_id': entity1_id,
+            'entity1_type': entity1_type,
+            'entity2_id': entity2_id,
+            'entity2_type': entity2_type,
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'counts': counts
+        })
+
+    except psycopg2.Error as e:
+        print("Error fetching entity pair analytics:", e)
+        return jsonify({"error": "Failed to fetch entity pair analytics"}), 500
+    except Exception as e:
+        print("Unexpected error:", e)
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+def get_tags_query(entity_type, entity_id):
+    # Define queries based on entity type
+    if entity_type == 'politician':
+        return """
+            SELECT t.tag_text
+            FROM tags t
+            JOIN tag_politician tp ON t.id = tp.tag_id
+            WHERE tp.politician_id = %s
+        """
+    elif entity_type == 'political-party':
+        return """
+            SELECT t.tag_text
+            FROM tags t
+            JOIN tag_political_parties tp ON t.id = tp.tag_id
+            WHERE tp.political_party_id = %s
+        """
+    elif entity_type == 'city':
+        return """
+            SELECT t.tag_text
+            FROM tags t
+            JOIN tag_city tc ON t.id = tc.tag_id
+            WHERE tc.city_id = %s
+        """
+    else:
+        raise ValueError("Invalid entityType")
+
+

@@ -54,7 +54,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Articles userId={userId}/>} />
           <Route path="/page/:page" element={<Articles userId={userId}/>} />
-          <Route path="/article/:id" element={<ArticleDetail />} />
+          <Route path="/article/:id" element={<ArticleDetail userId={userId}/>} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/explore" element={<Explore />} />

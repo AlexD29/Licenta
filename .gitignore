@@ -8,3 +8,5 @@ dist/
 .idea/
 .vscode/
 __pycache__/
+best_model_state_new5.bin
+best_model_state.bin

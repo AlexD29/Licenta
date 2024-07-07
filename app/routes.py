@@ -13,6 +13,15 @@ from .queries import *
 from .db import before_request, after_request
 from .stats_routes import statistics_bp
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import nltk
+import re
+
+stop_words_ro = set(stopwords.words('romanian'))
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@localhost/Licenta'
@@ -255,6 +264,7 @@ def get_article(article_id):
             'article_text': article_text,
             'comments': comments,
             'emotion': article_data[8],
+            'source_id': article_data[7],
             'source_name': article_data[9],
             'source_image_url': article_data[10]
         }
@@ -264,6 +274,90 @@ def get_article(article_id):
     except Exception as e:
         print("Error fetching article:", e)
         return jsonify({"error": "Failed to fetch article"}), 500
+
+@app.route('/api/article-suggestions/<int:article_id>', methods=['GET'])
+def get_article_suggestions(article_id):
+    try:
+        # Fetch the current article details
+        cur = g.db_cursor
+
+        cur.execute("""
+            SELECT a.title, a.image_url, a.emotion, a.source, s.name, s.image_url
+            FROM articles a
+            JOIN sources s ON a.source = s.id
+            WHERE a.id = %s
+        """, (article_id,))
+        current_article = cur.fetchone()
+        if not current_article:
+            return jsonify({"error": "Article not found"}), 404
+        
+        current_article_title = current_article[0]
+        current_article_image = current_article[1]
+        current_article_emotion = current_article[2]
+        current_article_source_id = current_article[3]
+        current_article_source_name = current_article[4]
+        current_article_source_image = current_article[5]
+
+        # Fetch all other articles' details
+        cur.execute("""
+            SELECT a.id, a.title, a.image_url, a.emotion, a.url, s.id, s.name, s.image_url
+            FROM articles a
+            JOIN sources s ON a.source = s.id
+            WHERE a.id != %s
+        """, (article_id,))
+        articles = cur.fetchall()
+
+        # Preprocess article titles for Romanian
+        def preprocess_text_ro(text):
+            # Remove non-alphanumeric characters
+            text = re.sub(r'\W', ' ', text)
+            # Convert to lowercase
+            text = text.lower()
+            # Tokenize words
+            words = word_tokenize(text)
+            # Remove stopwords
+            words = [word for word in words if word not in stop_words_ro]
+            # Join words back into a single string
+            return ' '.join(words)
+
+        # Preprocess current article title
+        current_article_title = preprocess_text_ro(current_article_title)
+
+        # Preprocess all other article titles
+        article_titles = [preprocess_text_ro(article[1]) for article in articles]
+
+        # Vectorize article titles
+        vectorizer = TfidfVectorizer()
+        X = vectorizer.fit_transform([current_article_title] + article_titles)
+
+        # Calculate cosine similarity
+        similarities = cosine_similarity(X[0], X[1:]).flatten()
+
+        # Get indices of top 5 similar articles
+        top_indices = similarities.argsort()[-5:][::-1]
+
+        # Retrieve details of top 5 similar articles with additional info
+        suggested_articles = []
+        for idx in top_indices:
+            article = articles[idx]
+            suggested_articles.append({
+                'id': article[0],
+                'title': article[1],
+                'url': article[4],  # Directly using the url column from the articles table
+                'image_url': article[2],
+                'emotion': article[3],
+                'source': {
+                    'id': article[5],
+                    'name': article[6],
+                    'image_url': article[7]
+                }
+            })
+
+        return jsonify({"suggested_articles": suggested_articles})
+
+    except Exception as e:
+        print("Error fetching article suggestions:", e)
+        return jsonify({"error": "Failed to fetch article suggestions"}), 500
 
 @app.route('/api/politician_articles', methods=['GET'])
 def politician_articles():
