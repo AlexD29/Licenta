@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
-const PoliticianArticlesDistribution = ({ politicianId }) => {
+const CityArticlesDistribution = ({ cityId }) => {
   const [chartData, setChartData] = useState({
-    politician_name: '',
+    city_name: '',
     dates: [],
     positive_counts: [],
     negative_counts: [],
@@ -15,7 +15,7 @@ const PoliticianArticlesDistribution = ({ politicianId }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/api/politician-articles-distribution-last-7-days/${politicianId}`);
+        const response = await axios.get(`http://localhost:8000/api/city-articles-distribution-last-7-days/${cityId}`);
         setChartData(response.data);
       } catch (error) {
         console.error('Error fetching articles distribution data:', error);
@@ -23,12 +23,13 @@ const PoliticianArticlesDistribution = ({ politicianId }) => {
     };
 
     fetchData();
-  }, [politicianId]);
+  }, [cityId]);
+
 
   const getOption = () => ({
     title: {
       text: 'Distribuția articolelor în ultimele 7 zile',
-      subtext: 'pentru ' + chartData.politician_name,
+      subtext: 'pentru ' + chartData.city_name,
       left: 'center',
       textStyle: {
         fontSize: 16,
@@ -124,4 +125,4 @@ const PoliticianArticlesDistribution = ({ politicianId }) => {
   );
 };
 
-export default PoliticianArticlesDistribution;
+export default CityArticlesDistribution;

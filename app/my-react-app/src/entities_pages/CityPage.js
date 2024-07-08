@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./EntityPage.css";
 import Footer from "../Footer";
 import ArticlesList from "./ArticlesList";
+import { shuffle } from 'lodash';
+import CityTopEntities from "charts/City/CityTopEntities";
+import PoliticianSourcesChart from "charts/Politician/PoliticianSourcesChart";
+import NegativeSources from "charts/Politician/NegativeSources";
+import PositiveSources from "charts/Politician/PositiveSources";
+import EntityRankComponent from "charts/Politician/EntityRankComponent";
+import CityArticlesDistribution from "charts/City/CityArticlesDistribution";
+import CityArticlesChart from "charts/City/CityArticlesChart";
+import TopCityAuthorsPieChart from "charts/City/TopCityAuthorsPieChart";
 
 function formatPopulation(population) {
   return population.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -54,6 +63,28 @@ const CityPage = ({ userId }) => {
       console.error("Error updating favorites:", error);
     }
   };
+
+  const charts = useMemo(() => {
+    if (!city) return [];
+    return [
+      <CityArticlesDistribution cityId={id} />,
+      <CityArticlesChart cityId={id} />,
+      <PoliticianSourcesChart entityId={id} entityType="city" />,
+      <NegativeSources entityId={id} entityType="city" />,
+      <PositiveSources entityId={id} entityType="city" />,
+      <CityTopEntities cityId={id} />,
+      <TopCityAuthorsPieChart cityId={id} />,
+      <EntityRankComponent entityId={id} entityType='city' />
+    ];
+  }, [id, city]);
+
+  const shuffledCharts = useMemo(() => {
+    const shuffled = shuffle(charts);
+    return {
+      firstPart: shuffled.slice(0, 4),
+      thirdPart: shuffled.slice(4, 8)
+    };
+  }, [charts]);
 
   if (!city) return <div>Loading...</div>;
 
@@ -154,8 +185,21 @@ const CityPage = ({ userId }) => {
           </div>
       </div>
       <div className="entity-second-part">
-        <div className="first-part"></div>
+        <div className="first-part">
+          {shuffledCharts.firstPart.map((chart, index) => (
+            <div key={index} className="chart-container">
+              {chart}
+            </div>
+          ))}
+        </div>
         <ArticlesList entity_id={id} entity_type="city" currentPage={currentPage} />
+        <div className="third-part">
+          {shuffledCharts.thirdPart.map((chart, index) => (
+            <div key={index} className="chart-container">
+              {chart}
+            </div>
+          ))}
+        </div>
       </div>
       <Footer />
     </div>

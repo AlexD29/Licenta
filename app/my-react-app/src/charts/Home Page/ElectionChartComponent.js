@@ -2,15 +2,19 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import ReactECharts from 'echarts-for-react';
 
-const ElectionChartComponent = () => {
+const ElectionChartComponent = ({startDate}) => {
     const [chartData, setChartData] = useState({ xAxisData: [], series: [] });
 
     useEffect(() => {
         const fetchElectionData = async () => {
             try {
-                const response = await axios.get('http://localhost:8000/api/election-articles-distribution');
-                const data = response.data.election_distribution;
+                const response = await axios.get('http://localhost:8000/api/election-articles-distribution', {
+                    params: {
+                        start_date: startDate
+                    }
+                });        
 
+                const data = response.data.election_distribution;
                 const dates = new Set();
                 const seriesData = {};
 
@@ -54,7 +58,7 @@ const ElectionChartComponent = () => {
     const getOption = () => {
         return {
             title: {
-                text: 'Distribuția articolelor electorale\ndin ultima săptămână',
+                text: 'Distribuția articolelor electorale\nîn timp',
                 left: 'center',
                 textStyle: {
                     color: 'black'

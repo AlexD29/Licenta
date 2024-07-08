@@ -68,7 +68,7 @@
 .profile-info{
   display: flex;
   flex-direction: row;
-  margin: 2rem 0 2rem 3rem;
+  margin: 2rem 0 0 3rem;
 }
 
 .profile-name{
@@ -89,9 +89,8 @@
 }
 
 .profile-svg{
-  width: 2rem;
+  width: 2.5rem;
   height: auto;
-  margin-right: 1rem;
 }
 
 .population-svg{
@@ -279,8 +278,28 @@
 }
 
 .entity-profile-picture-mini{
-  width: auto;
+  width: 3rem;
   margin-right: 1rem;
+}
+
+.social-media-icons-entity{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.social-media-entity-icon{
+  width: 2.8rem;
+  height: 2.8rem;
+}
+
+.x{
+  border-radius: 7px;
+}
+
+.social-media-link{
+  cursor: pointer;
 }
 
 .social-media-icons{
@@ -312,6 +331,9 @@
 }
 
 .second-part{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   width: 35%;
   margin: 1rem 1.25% 0 1.25%;
 }
@@ -356,6 +378,21 @@
 .neutral-text{
   color: gray;
 }
+
+.other-details-div{
+  margin: 0 15rem 1rem 15rem;
+  height: 6rem;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.other-details-box{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 
 
 /*ARTICLE LIST*/

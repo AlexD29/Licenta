@@ -5,6 +5,8 @@ import Footer from '../Footer';
 import { formatDate } from '../Articles';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { truncateTitle } from '../Articles';
+import ElectionChartComponent from 'charts/Home Page/ElectionChartComponent';
+import ElectionEmotionsChart from 'charts/Elections/ElectionEmotionsChart';
 
 const formatPastDate = (date) => {
     const options = { day: 'numeric', month: 'long' };
@@ -44,13 +46,6 @@ const Pagination = ({ currentPage, totalPages, category }) => {
         <nav className="pagination gutter-col-xs-0">
             <div className="flex flex-middle">
                 <div className="col-3">
-                    <Link to={`/alegeri/${category}/page/1`} className="pagination-link pagination-link-prev">
-                        <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enableBackground="new 0 0 92 92">
-                            <path id="XMLID_646_" d="M78.7,9.4c-1.4-0.7-3-0.5-4.2,0.5L33,42.9c-1,0.8-1.5,1.9-1.5,3.1s0.6,2.4,1.5,3.1l41.5,33
-                            c0.7,0.6,1.6,0.9,2.5,0.9c0.6,0,1.2-0.1,1.7-0.4c1.4-0.7,2.3-2.1,2.3-3.6V13C81,11.5,80.1,10.1,78.7,9.4z M73,70.7L41.9,46L73,21.3
-                            V70.7z M19,14.6v63.5c0,2.5-2,4.5-4.5,4.5s-4.5-2-4.5-4.5V14.6c0-2.5,2-4.5,4.5-4.5S19,12.1,19,14.6z"></path>
-                        </svg>
-                    </Link>
                     <Link to={`/alegeri/${category}/page/${currentPage > 1 ? currentPage - 1 : 1}`} className="pagination-link pagination-link-prev" rel="prev">
                         <svg width="100%" height="100%" viewBox="0 0 16 16" version="1.1" style={{ fillRule: 'evenodd', clipRule: 'evenodd', strokeLinejoin: 'round', strokeMiterlimit: 2 }}>
                             <g id="Icon">
@@ -59,9 +54,7 @@ const Pagination = ({ currentPage, totalPages, category }) => {
                         </svg>
                     </Link>
                 </div>
-                <div className="col-6 col-center">
-                    {renderPagination(currentPage, totalPages)}
-                </div>
+                <span className="current-page">{currentPage}</span>
                 <div className="col-3 col-end">
                     <Link to={`/alegeri/${category}/page/${currentPage < totalPages ? currentPage + 1 : totalPages}`} className="pagination-link pagination-link-next">
                         <svg version="1.1" id="Layer_1" x="0px" y="0px" viewBox="0 0 32 32" style={{ enableBackground: 'new 0 0 32 32' }}>
@@ -69,13 +62,6 @@ const Pagination = ({ currentPage, totalPages, category }) => {
                                 <path d="M11.5,26c-0.3,0-0.5-0.1-0.7-0.3c-0.4-0.4-0.4-1,0-1.4l8.3-8.3l-8.3-8.3c-0.4-0.4-0.4-1,0-1.4s1-0.4,1.4,0l9,9
                                 c0.4,0.4,0.4,1,0,1.4l-9,9C12,25.9,11.8,26,11.5,26z"></path>
                             </g>
-                        </svg>
-                    </Link>
-                    <Link to={`/alegeri/${category}/page/${totalPages}`} className="pagination-link pagination-link-next" rel="next">
-                        <svg version="1.1" id="Layer_1" x="0px" y="0px" width="92px" height="92px" viewBox="0 0 92 92" enableBackground="new 0 0 92 92" xmlSpace="preserve">
-                            <path id="XMLID_659_" d="M59.5,42.9l-42-33c-1.2-0.9-2.8-1.1-4.2-0.5C11.9,10.1,11,11.5,11,13v66c0,1.5,0.9,2.9,2.3,3.6
-                            c0.6,0.3,1.2,0.4,1.7,0.4c0.9,0,1.8-0.3,2.5-0.9l42-33c1-0.8,1.5-1.9,1.5-3.1C61,44.8,60.4,43.6,59.5,42.9z M19,70.8V21.2L50.5,46
-                            L19,70.8z M81,14.6v63.5c0,2.5-2,4.5-4.5,4.5s-4.5-2-4.5-4.5V14.6c0-2.5,2-4.5,4.5-4.5S81,12.1,81,14.6z"></path>
                         </svg>
                     </Link>
                 </div>
@@ -161,7 +147,7 @@ const Elections = () => {
                 <span className='alegeri-message'>Votul tău contează!</span>
             </div>
             <div className='alegeri-content'>
-                <div className='first-part'>
+                <div className='first-part not-enough'>
                     <ul className='alegeri-list'>
                         <Link to='/alegeri/toate-alegerile' className='alegeri-link'>
                         <li 
@@ -223,6 +209,7 @@ const Elections = () => {
                             </li>
                         </Link>
                     </ul>
+                    <ElectionEmotionsChart category={category} />
                 </div>
                 <div className="second-part">
                     <div className="articles-part">
@@ -266,7 +253,7 @@ const Elections = () => {
                     <Pagination currentPage={currentPage} totalPages={totalPages} category={category} />
                 </div>
                 <div className='third-part'>
-
+                    <ElectionChartComponent startDate="2024-01-01" />
                 </div>
             </div>
             <Footer/>

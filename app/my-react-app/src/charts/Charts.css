@@ -298,3 +298,104 @@
   align-items: center;
 }
 
+
+
+/* POLITICAL PARTY APPARITIONS*/
+
+.articles-count-container{
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  margin: 20px;
+  position: relative; /* Make the card a positioned element */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.articles-count-details{
+  display: flex;
+  flex-direction: row;
+}
+
+.party-relation-stats{
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  font-weight: bold;
+}
+
+.entity-pair-2{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-right: 1rem;
+}
+
+.entity-politician-party{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  text-align: center;
+  width: fit-content;
+}
+
+.p-element-stats{
+  width: 50%;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: 25px;
+  display: flex;
+  flex-direction: column;
+  
+}
+
+.h2-politician-political-party{
+  margin: 20px 0;
+}
+
+.up-p{
+  margin-bottom: 0;
+}
+
+.down-p{
+  margin-top:0;
+}
+
+/* TOP PAIRS ENTITY*/
+
+.top-3-row{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 10px;
+  align-items: center;
+}
+
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.top-3-row-rank {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.top-3-row-rank span {
+  margin: 1rem 2rem;
+}
+
+.title-h2{
+  margin-top:10px;
+}
+
+.emotion-pie-chart{
+  width: 5rem;
+  height: 5rem;
+}

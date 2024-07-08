@@ -743,9 +743,12 @@ def scrape_article_mediafax(article_url, title):
             number_of_views = 0
 
         date_element = soup.find('dd', class_='date')
-        date_text = date_element.get_text()
-        cleaned_date_text = ''.join(filter(str.isdigit, date_text))
-        published_date = datetime.datetime.strptime(cleaned_date_text, '%d%m%Y%H%M')
+        if date_element:
+            date_text = date_element.get_text()
+            cleaned_date_text = ''.join(filter(str.isdigit, date_text))
+            published_date = datetime.datetime.strptime(cleaned_date_text, '%d%m%Y%H%M')
+        else:
+            published_date = None
 
         article_text_content_div = soup.find('div', id='article_text_content')
         content_div = article_text_content_div.find('div', class_='just-article-content')

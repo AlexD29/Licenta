@@ -54,8 +54,56 @@ def insert_cities_from_excel_to_db():
     conn.commit()
     print("Data inserted successfully.")
 
-insert_politicians_from_excel_to_db()
+#insert_politicians_from_excel_to_db()
 
 #insert_cities_from_excel_to_db()
     
 #insert_political_parties_from_excel_to_db()
+
+def update_political_party_column_from_excel():
+    excel_file = "politicians.xlsx"
+    politicians_df = pd.read_excel(excel_file, sheet_name='Politicians')
+
+    # Convert 'Date Of Birth' column to the necessary format
+    politicians_df['Date Of Birth'] = pd.to_datetime(politicians_df['Date Of Birth'], format='%d.%m.%Y', dayfirst=True, errors='coerce').dt.strftime('%Y-%m-%d')
+
+    # Remove rows with invalid dates (NaT)
+    politicians_df = politicians_df.dropna(subset=['Date Of Birth'])
+
+    cursor = conn.cursor()
+
+    for index, row in politicians_df.iterrows():
+        first_name = row['First Name']
+        last_name = row['Last Name']
+        party_abbreviation = row['Political Party']
+        
+        if pd.isna(party_abbreviation):
+            continue
+
+        # Find the politician in the database
+        cursor.execute("""
+            SELECT id FROM politicians WHERE first_name = %s AND last_name = %s
+        """, (first_name, last_name))
+        politician_id = cursor.fetchone()
+
+        if politician_id:
+            politician_id = politician_id[0]
+
+            # Find the party id from the political_parties table using the abbreviation
+            cursor.execute("""
+                SELECT id FROM political_parties WHERE abbreviation = %s
+            """, (party_abbreviation,))
+            party_id = cursor.fetchone()
+
+            if party_id:
+                party_id = party_id[0]
+                # Update the political party column for the politician
+                cursor.execute("""
+                    UPDATE politicians SET political_party_id = %s WHERE id = %s
+                """, (party_id, politician_id))
+
+    conn.commit()
+    conn.close()
+
+# Run the function to update political parties
+update_political_party_column_from_excel()

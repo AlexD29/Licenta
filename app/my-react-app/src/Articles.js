@@ -215,6 +215,7 @@ function Articles({ userId }) {
     fetchFavorites();
   }, [userId]);
 
+
   useEffect(() => {
     if (!favoritesLoaded) {
       return;  // Wait until favorites are loaded
@@ -258,14 +259,14 @@ function Articles({ userId }) {
   const charts = useMemo(() => ([
     <SentimentOverTimeChart key="SentimentOverTimeChart" />,
     <ArticleLengthDistributionChart key="ArticleLengthDistributionChart" />,
-    <TopEntitySuggestions key="TopEntitySuggestions-1" entityType={topEntities.politician[0]} userId={userId} favorites={favorites} entities={topEntities.politician} />,
+    <TopEntitySuggestions key="TopEntitySuggestions-1" entityType="politician" userId={userId} favorites={favorites} entities={topEntities.politician} />,
     <ArticlesDistributionLast30Days key="ArticlesDistributionLast30Days" />,
-    <TopEntitySuggestions key="TopEntitySuggestions-2" entityType={topEntities['political-party'][0]} userId={userId} favorites={favorites} entities={topEntities['political-party']} />,
+    <TopEntitySuggestions key="TopEntitySuggestions-2" entityType="political-party" userId={userId} favorites={favorites} entities={topEntities['political-party']} />,
     <TopCitiesChart key="TopCitiesChart" />,
     <TopPoliticiansChart key="TopPoliticiansChart" />,
     <RelatedEntities key="RelatedEntities" startDate={startDate} endDate={endDate} />,
     <TopEntityPairs key="TopEntityPairs" />,
-    <TopEntitySuggestions key="TopEntitySuggestions-3" entityType={topEntities.city[0]} userId={userId} favorites={favorites} entities={topEntities.city} />,
+    //<TopEntitySuggestions key="TopEntitySuggestions-3" entityType="city" userId={userId} favorites={favorites} entities={topEntities.city} />,
     <TopAuthorsPieChart key="TopAuthorsPieChart" />,
     <ElectionChartComponent key="ElectionChartComponent" />,
     <TopSourcesChart key="TopSourcesChart" />,

@@ -37,7 +37,7 @@
 .alegeri-list {
     list-style-type: none;
     padding: 0;
-    margin: 0;
+    margin: 0 0 2rem 0;
 }
 
 .alegeri-list-item {

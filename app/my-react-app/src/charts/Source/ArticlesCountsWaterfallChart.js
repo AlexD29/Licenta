@@ -22,7 +22,7 @@ function SourceArticlesCountsWaterfallChart({ sourceId }) {
     const { total, positive, negative, neutral } = counts;
     return {
       title: {
-        text: 'Articole Publicate Astăzi\ndespre Marcel Ciolacu',
+        text: 'Articole Publicate Astăzi',
         left: 'center',
         textStyle: {
           color: '#000', // Title text color black

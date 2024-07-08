@@ -102,7 +102,6 @@ const normalizeString = (str) => {
       </div>
       <div className='results-div'>
         <div className='first-part'>
-            <PoliticianSourcesChart politicianId={11} />
         </div>
         <div className="second-part">
             {categoryOrder.map((category) => (
@@ -328,7 +327,6 @@ const normalizeString = (str) => {
             </div>
         </div>
         <div className='third-part'>
-            <PoliticianArticlesDistribution politicianId={11} />
         </div>
       </div>
       <Footer/>

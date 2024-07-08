@@ -5,9 +5,59 @@ import Pagination from "./Pagination";
 import { formatDate } from "../Articles";
 import "./MyInterests.css";
 import Footer from "../Footer";
-import MyInterestsCalendarChart from "charts/Politician/MyInterestsCalendarChart";
-import NightingaleChart from "charts/Politician/NightingaleChart";
+import { useNavigate } from "react-router-dom";
 import { truncateTitle } from "../Articles";
+import CityTopEntities from "charts/City/CityTopEntities";
+import PoliticianSourcesChart from "charts/Politician/PoliticianSourcesChart";
+import NegativeSources from "charts/Politician/NegativeSources";
+import PositiveSources from "charts/Politician/PositiveSources";
+import EntityRankComponent from "charts/Politician/EntityRankComponent";
+import CityArticlesDistribution from "charts/City/CityArticlesDistribution";
+import CityArticlesChart from "charts/City/CityArticlesChart";
+import TopCityAuthorsPieChart from "charts/City/TopCityAuthorsPieChart";
+import TopPoliticalPartyAuthorsPieChart from "charts/Political Parties/TopPoliticalPartyAuthorsPieChart";
+import PoliticalPartyArticlesDistribution from "charts/Political Parties/PoliticalPartyArticlesDistribution";
+import PoliticalPartyArticlesChart from "charts/Political Parties/PoliticalPartyArticlesChart";
+import PoliticalPartyTopEntities from "charts/Political Parties/PoliticalPartyTopEntities";
+import PoliticianArticlesDistribution from "charts/Politician/PoliticianArticlesDistribution";
+import PoliticianArticlesChart from "charts/Politician/PoliticianArticlesChart";
+import PoliticianPartyArticlesCount from "charts/Politician/PoliticianPartyArticlesCount";
+import PoliticianTopEntities from "charts/Politician/PoliticianTopEntities";
+import TopPoliticianAuthorsPieChart from "charts/Politician/TopPoliticianAuthors";
+
+const politicianCharts = (id, politician) => [
+  <PoliticianArticlesDistribution politicianId={id} />,
+  <PoliticianArticlesChart politicianId={id} />,
+  <PoliticianSourcesChart entityId={id} entityType="politician" />,
+  <NegativeSources entityId={id} entityType="politician" />,
+  <PositiveSources entityId={id} entityType="politician" />,
+  <PoliticianTopEntities politicianId={id} />,
+  <TopPoliticianAuthorsPieChart politicianId={id} />,
+  <EntityRankComponent entityId={id} entityType='politician' />,
+];
+
+const politicalPartyCharts = (id) => [
+  <PoliticalPartyArticlesDistribution politicalPartyId={id} />,
+  <PoliticalPartyArticlesChart politicalPartyId={id} />,
+  <PoliticianSourcesChart entityId={id} entityType="political-party" />,
+  <NegativeSources entityId={id} entityType="political-party" />,
+  <PositiveSources entityId={id} entityType="political-party" />,
+  <PoliticalPartyTopEntities politicalPartyId={id} />,
+  <TopPoliticalPartyAuthorsPieChart politicalPartyId={id} />,
+  <EntityRankComponent entityId={id} entityType='political_party' />,
+];
+
+const cityCharts = (id) => [
+  <CityArticlesDistribution cityId={id} />,
+  <CityArticlesChart cityId={id} />,
+  <PoliticianSourcesChart entityId={id} entityType="city" />,
+  <NegativeSources entityId={id} entityType="city" />,
+  <PositiveSources entityId={id} entityType="city" />,
+  <CityTopEntities cityId={id} />,
+  <TopCityAuthorsPieChart cityId={id} />,
+  <EntityRankComponent entityId={id} entityType='city' />,
+];
+
 
 const MyInterests = ({ userId }) => {
   const [favorites, setFavorites] = useState({});
@@ -19,6 +69,7 @@ const MyInterests = ({ userId }) => {
   const [hasFavorites, setHasFavorites] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [userChecked, setUserChecked] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const verifyUser = async () => {
@@ -85,7 +136,46 @@ const MyInterests = ({ userId }) => {
         .catch((error) => console.error("Error fetching suggestions:", error));
     }
   }, [hasFavorites]);
+
+  const collectAllCharts = (favorites) => {
+    const allCharts = [];
+
+    // Collect all charts from all favorite entities
+    Object.keys(favorites).forEach(type => {
+      favorites[type].forEach(entity => {
+        switch (type) {
+          case "politician":
+            allCharts.push(...politicianCharts(entity.id, entity));
+            break;
+          case "political-party":
+            allCharts.push(...politicalPartyCharts(entity.id));
+            break;
+          case "city":
+            allCharts.push(...cityCharts(entity.id));
+            break;
+          default:
+            break;
+        }
+      });
+    });
+
+    return allCharts;
+  };
+
+  const getRandomCharts = (charts) => {
+    const shuffledCharts = charts.sort(() => Math.random() - 0.5);
+    return shuffledCharts.slice(0, 6); // Limit to 6 charts
+  };
   
+  useEffect(() => {
+    if (userChecked && !loading && !error && hasFavorites) {
+      const allCharts = collectAllCharts(favorites);
+      const randomCharts = getRandomCharts(allCharts);
+      setDisplayedCharts(randomCharts);
+    }
+  }, [userChecked, loading, error, hasFavorites, favorites]);
+
+  const [displayedCharts, setDisplayedCharts] = useState([]);
 
   const handleRemove = async (id, type) => {
     const confirmRemove = window.confirm(
@@ -153,6 +243,10 @@ const MyInterests = ({ userId }) => {
     setCurrentPage(page);
   };
 
+  const handleProfileClick = (entityType, entityId) => {
+    navigate(`/${entityType}/${entityId}`);
+  };
+
   if (!userChecked) {
     return (
       <div className="loading-container">
@@ -218,6 +312,7 @@ const MyInterests = ({ userId }) => {
                             <li
                               key={`${favorite.id}-${favorite.type}`}
                               className="favorite-entity"
+                              onClick={() => handleProfileClick(favorite.type, favorite.id)}
                             >
                               <img
                                 src={favorite.image_url}
@@ -343,8 +438,11 @@ const MyInterests = ({ userId }) => {
                 />
             </div>
             <div className="third-part-favorite">
-              <MyInterestsCalendarChart />
-              <NightingaleChart />
+              {displayedCharts.map((ChartComponent, index) => (
+                <div key={index} className="chart-container">
+                  {ChartComponent}
+                </div>
+              ))}
             </div>
           </div>
         )}

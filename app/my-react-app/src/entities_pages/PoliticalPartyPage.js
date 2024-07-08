@@ -1,9 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { shuffle } from 'lodash';
 import "./EntityPage.css";
 import Footer from "../Footer";
 import ArticlesList from "./ArticlesList";
+import EntityRankComponent from "charts/Politician/EntityRankComponent";
+import NegativeSources from "charts/Politician/NegativeSources";
+import PositiveSources from "charts/Politician/PositiveSources";
+import TopPoliticalPartyAuthorsPieChart from "charts/Political Parties/TopPoliticalPartyAuthorsPieChart";
+import PoliticalPartyArticlesDistribution from "charts/Political Parties/PoliticalPartyArticlesDistribution";
+import PoliticalPartyArticlesChart from "charts/Political Parties/PoliticalPartyArticlesChart";
+import PoliticianSourcesChart from "charts/Politician/PoliticianSourcesChart";
+import PoliticalPartyTopEntities from "charts/Political Parties/PoliticalPartyTopEntities";
 
 function formatDate(dateString) {
   const date = new Date(dateString);
@@ -75,6 +84,28 @@ const PoliticalPartyPage = ({ userId }) => {
       console.error("Error updating favorites:", error);
     }
   };
+
+  const charts = useMemo(() => {
+    if (!political_party) return [];
+    return [
+      <PoliticalPartyArticlesDistribution politicalPartyId={id} />,
+      <PoliticalPartyArticlesChart politicalPartyId={id} />,
+      <PoliticianSourcesChart entityId={id} entityType="political-party" />,
+      <NegativeSources entityId={id} entityType="political-party" />,
+      <PositiveSources entityId={id} entityType="political-party" />,
+      <PoliticalPartyTopEntities politicalPartyId={id} />,
+      <TopPoliticalPartyAuthorsPieChart politicalPartyId={id} />,
+      <EntityRankComponent entityId={id} entityType='political_party' />
+    ];
+  }, [id, political_party]);
+
+  const shuffledCharts = useMemo(() => {
+    const shuffled = shuffle(charts);
+    return {
+      firstPart: shuffled.slice(0, 4),
+      thirdPart: shuffled.slice(4, 8)
+    };
+  }, [charts]);
 
   console.log(political_party);
 
@@ -163,8 +194,21 @@ const PoliticalPartyPage = ({ userId }) => {
           </div>
       </div>
       <div className="entity-second-part">
-          <div className="first-part"></div>
+          <div className="first-part">
+            {shuffledCharts.firstPart.map((chart, index) => (
+              <div key={index} className="chart-container">
+                {chart}
+              </div>
+            ))}
+          </div>
           <ArticlesList entity_id={id} entity_type="political-party" currentPage={currentPage} />
+          <div className="third-part">
+            {shuffledCharts.thirdPart.map((chart, index) => (
+              <div key={index} className="chart-container">
+                {chart}
+              </div>
+            ))}
+          </div>
       </div>
       <Footer />
     </div>

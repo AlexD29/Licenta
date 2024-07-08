@@ -448,60 +448,6 @@ def get_top_sources():
         print("Unexpected error:", e)
         return jsonify({"error": "Unexpected error occurred"}), 500
 
-@statistics_bp.route('/api/election-articles-distribution', methods=['GET'])
-def get_election_articles_distribution():
-    try:
-        end_date = datetime.now()
-        start_date_param = request.args.get('start_date')
-        
-        if start_date_param:
-            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
-        else:
-            start_date = end_date - timedelta(days=7)
-
-        cur = g.db_cursor
-
-        # Step 1: Get all the election categories excluding "Toate Alegerile"
-        cur.execute("SELECT id, name FROM elections WHERE name != 'Toate Alegerile'")
-        elections = cur.fetchall()
-
-        # Prepare the result dictionary
-        election_distribution = {election[1]: {} for election in elections}
-
-        # Step 2: Get the tags associated with each election and count articles by date
-        for election in elections:
-            election_id, election_name = election
-
-            # Fetch the tags associated with this election ID
-            cur.execute("SELECT tag_text FROM tags WHERE id IN (SELECT tag_id FROM tag_election WHERE election_id = %s)", (election_id,))
-            tags = [tag[0] for tag in cur.fetchall()]
-
-            if not tags:
-                continue
-
-            # Fetch the article count per day for these tags
-            cur.execute("""
-                SELECT a.published_date::date AS article_date, COUNT(DISTINCT a.id) AS total_articles
-                FROM articles AS a
-                JOIN tags AS t ON a.id = t.article_id
-                WHERE t.tag_text = ANY(%s)
-                  AND a.published_date BETWEEN %s AND %s
-                GROUP BY article_date
-                ORDER BY article_date
-            """, (tags, start_date, end_date))
-            
-            rows = cur.fetchall()
-
-            for row in rows:
-                article_date, total_articles = row
-                election_distribution[election_name][article_date.strftime('%Y-%m-%d')] = total_articles
-
-        return jsonify({'election_distribution': election_distribution})
-
-    except Exception as e:
-        print("Error fetching election articles distribution:", e)
-        return jsonify({"error": "Failed to fetch election articles distribution"}), 500
-
 @statistics_bp.route('/api/articles/last_30_days', methods=['GET'])
 def get_articles_last_30_days():
     try:
@@ -1524,4 +1470,1697 @@ def get_tags_query(entity_type, entity_id):
     else:
         raise ValueError("Invalid entityType")
 
+
+### POLITICIAN PAGE ###
+    
+@statistics_bp.route('/api/politician-articles-distribution-last-7-days/<int:politician_id>', methods=['GET'])
+def get_articles_distribution_last_7_days(politician_id):
+    try:
+        cur = g.db_cursor
+
+        today = datetime.today()
+        date_7_days_ago = today - timedelta(days=7)
+
+        cur.execute("""
+            SELECT 
+                DATE(a.published_date) AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_politician
+                JOIN tags ON tag_politician.tag_id = tags.id
+                WHERE politician_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY DATE(a.published_date)
+            ORDER BY publish_date
+        """, (politician_id, date_7_days_ago, today))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0].strftime('%Y-%m-%d'))
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+
+        cur.execute("""
+            SELECT CONCAT(first_name, ' ', last_name) AS politician_name
+            FROM politicians
+            WHERE id = %s
+        """, (politician_id,))
+        politician_name = cur.fetchone()[0]
+
+        return jsonify({
+            'politician_name': politician_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for politician:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for politician"}), 500
+
+@statistics_bp.route('/api/politician-articles-distribution-since-january/<int:politician_id>', methods=['GET'])
+def get_articles_distribution_since_january(politician_id):
+    try:
+        cur = g.db_cursor
+
+        start_date = datetime(datetime.today().year, 1, 1)
+        end_date = datetime.today()
+
+        cur.execute("""
+            SELECT 
+                TO_CHAR(a.published_date, 'YYYY-MM') AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_politician
+                JOIN tags ON tag_politician.tag_id = tags.id
+                WHERE politician_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY TO_CHAR(a.published_date, 'YYYY-MM')
+            ORDER BY publish_date
+        """, (politician_id, start_date, end_date))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0])
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+        
+        cur.execute("""
+            SELECT CONCAT(first_name, ' ', last_name) AS politician_name
+            FROM politicians
+            WHERE id = %s
+        """, (politician_id,))
+        politician_name = cur.fetchone()[0]
+
+        return jsonify({
+            'politician_name': politician_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for politician:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for politician"}), 500
+
+@statistics_bp.route('/api/entity-sources-count/<int:entity_id>', methods=['GET'])
+def get_sources_by_entity_id(entity_id):
+    try:
+        entity_type = request.args.get('entity_type')
+        if entity_type not in ['politician', 'political-party', 'city']:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        cur = g.db_cursor
+        
+        # Determine the tag table and column based on entity_type
+        if entity_type == 'politician':
+            tag_table = 'tag_politician'
+            tag_column = 'politician_id'
+            entity_name_query = """
+                SELECT CONCAT(first_name, ' ', last_name) AS entity_name
+                FROM politicians
+                WHERE id = %s
+            """
+        elif entity_type == 'political-party':
+            tag_table = 'tag_political_parties'
+            tag_column = 'political_party_id'
+            entity_name_query = """
+                SELECT abbreviation AS entity_name
+                FROM political_parties
+                WHERE id = %s
+            """
+        elif entity_type == 'city':
+            tag_table = 'tag_city'
+            tag_column = 'city_id'
+            entity_name_query = """
+                SELECT name AS entity_name
+                FROM cities
+                WHERE id = %s
+            """
+        else:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        # Fetch entity name
+        cur.execute(entity_name_query, (entity_id,))
+        entity_name = cur.fetchone()[0]
+
+        # Execute the main query dynamically
+        cur.execute(f"""
+            WITH unique_articles AS (
+                SELECT DISTINCT a.id, a.source
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM {tag_table}
+                    JOIN tags ON {tag_table}.tag_id = tags.id
+                    WHERE {tag_column} = %s
+                )
+            )
+            SELECT s.id, s.name, s.image_url, COUNT(ua.id) AS article_count
+            FROM unique_articles AS ua
+            JOIN sources AS s ON ua.source = s.id
+            GROUP BY s.id, s.name, s.image_url
+            ORDER BY article_count DESC
+        """, (entity_id,))
+        sources = cur.fetchall()
+
+        sources_list = []
+        for source in sources:
+            source_dict = {
+                'id': source[0],
+                'name': source[1],
+                'image_url': source[2],
+                'article_count': source[3]
+            }
+            sources_list.append(source_dict)
+
+        return jsonify({
+            'entity_name': entity_name,
+            'sources': sources_list
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching sources for {entity_type}: {e}")
+        return jsonify({"error": f"Failed to fetch sources for {entity_type}"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+@statistics_bp.route('/api/entity-sources-most-negative/<int:entity_id>', methods=['GET'])
+def get_most_negative_sources(entity_id):
+    try:
+        entity_type = request.args.get('entity_type')
+        if entity_type not in ['politician', 'political-party', 'city']:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        cur = g.db_cursor
+        
+        # Determine the tag table and column based on entity_type
+        if entity_type == 'politician':
+            tag_table = 'tag_politician'
+            tag_column = 'politician_id'
+            entity_name_query = """
+                SELECT CONCAT(first_name, ' ', last_name) AS entity_name
+                FROM politicians
+                WHERE id = %s
+            """
+        elif entity_type == 'political-party':
+            tag_table = 'tag_political_parties'
+            tag_column = 'political_party_id'
+            entity_name_query = """
+                SELECT abbreviation AS entity_name
+                FROM political_parties
+                WHERE id = %s
+            """
+        elif entity_type == 'city':
+            tag_table = 'tag_city'
+            tag_column = 'city_id'
+            entity_name_query = """
+                SELECT name AS entity_name
+                FROM cities
+                WHERE id = %s
+            """
+        else:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        # Fetch entity name
+        cur.execute(entity_name_query, (entity_id,))
+        entity_name = cur.fetchone()[0]
+
+        # Execute the main query dynamically to get sources and their article counts
+        cur.execute(f"""
+            WITH entity_articles AS (
+                SELECT a.id, a.source, a.emotion
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM {tag_table}
+                    JOIN tags ON {tag_table}.tag_id = tags.id
+                    WHERE {tag_column} = %s
+                )
+            ),
+            source_stats AS (
+                SELECT s.id, s.name, s.image_url,
+                       COUNT(ea.id) AS article_count,
+                       SUM(CASE WHEN ea.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count
+                FROM entity_articles AS ea
+                JOIN sources AS s ON ea.source = s.id
+                GROUP BY s.id, s.name, s.image_url
+            )
+            SELECT id, name, image_url, article_count, negative_count,
+                   CASE WHEN article_count > 0 THEN (negative_count::FLOAT / article_count) * 100 ELSE 0 END AS negative_percentage
+            FROM source_stats
+            WHERE article_count > 0
+            ORDER BY negative_percentage DESC
+            LIMIT 3
+        """, (entity_id,))
+        sources = cur.fetchall()
+
+        sources_list = []
+        for source in sources:
+            source_dict = {
+                'id': source[0],
+                'name': source[1],
+                'image_url': source[2],
+                'article_count': source[3],
+                'negative_count': source[4],
+                'negative_percentage': source[5]
+            }
+            sources_list.append(source_dict)
+
+        return jsonify({
+            'entity_name': entity_name,
+            'sources': sources_list
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching most negative sources for {entity_type}: {e}")
+        return jsonify({"error": f"Failed to fetch most negative sources for {entity_type}"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+@statistics_bp.route('/api/entity-sources-most-positive/<int:entity_id>', methods=['GET'])
+def get_most_positive_sources(entity_id):
+    try:
+        entity_type = request.args.get('entity_type')
+        if entity_type not in ['politician', 'political-party', 'city']:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        cur = g.db_cursor
+        
+        # Determine the tag table and column based on entity_type
+        if entity_type == 'politician':
+            tag_table = 'tag_politician'
+            tag_column = 'politician_id'
+            entity_name_query = """
+                SELECT CONCAT(first_name, ' ', last_name) AS entity_name
+                FROM politicians
+                WHERE id = %s
+            """
+        elif entity_type == 'political-party':
+            tag_table = 'tag_political_parties'
+            tag_column = 'political_party_id'
+            entity_name_query = """
+                SELECT abbreviation AS entity_name
+                FROM political_parties
+                WHERE id = %s
+            """
+        elif entity_type == 'city':
+            tag_table = 'tag_city'
+            tag_column = 'city_id'
+            entity_name_query = """
+                SELECT name AS entity_name
+                FROM cities
+                WHERE id = %s
+            """
+        else:
+            return jsonify({"error": "Invalid entity_type provided"}), 400
+
+        # Fetch entity name
+        cur.execute(entity_name_query, (entity_id,))
+        entity_name = cur.fetchone()[0]
+
+        # Execute the main query dynamically to get sources and their article counts
+        cur.execute(f"""
+            WITH entity_articles AS (
+                SELECT a.id, a.source, a.emotion
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text IN (
+                    SELECT tag_text
+                    FROM {tag_table}
+                    JOIN tags ON {tag_table}.tag_id = tags.id
+                    WHERE {tag_column} = %s
+                )
+            ),
+            source_stats AS (
+                SELECT s.id, s.name, s.image_url,
+                       COUNT(ea.id) AS article_count,
+                       SUM(CASE WHEN ea.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count
+                FROM entity_articles AS ea
+                JOIN sources AS s ON ea.source = s.id
+                GROUP BY s.id, s.name, s.image_url
+            )
+            SELECT id, name, image_url, article_count, positive_count,
+                   CASE WHEN article_count > 0 THEN (positive_count::FLOAT / article_count) * 100 ELSE 0 END AS positive_percentage
+            FROM source_stats
+            WHERE article_count > 0
+            ORDER BY positive_percentage DESC
+            LIMIT 3
+        """, (entity_id,))
+        sources = cur.fetchall()
+
+        sources_list = []
+        for source in sources:
+            source_dict = {
+                'id': source[0],
+                'name': source[1],
+                'image_url': source[2],
+                'article_count': source[3],
+                'positive_count': source[4],
+                'positive_percentage': source[5]
+            }
+            sources_list.append(source_dict)
+
+        return jsonify({
+            'entity_name': entity_name,
+            'sources': sources_list
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching most positive sources for {entity_type}: {e}")
+        return jsonify({"error": f"Failed to fetch most positive sources for {entity_type}"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+@statistics_bp.route('/api/politician-party-articles-count', methods=['GET'])
+def get_politician_party_articles_count():
+    try:
+        politician_id = request.args.get('politician_id')
+        political_party_id = request.args.get('political_party_id')
+
+        if not politician_id or not political_party_id:
+            return jsonify({"error": "Missing politician_id or political_party_id"}), 400
+
+        cur = g.db_cursor
+
+        # Fetch tags for the politician
+        politician_tags_query = get_tags_query('politician', politician_id)
+        cur.execute(politician_tags_query, (politician_id,))
+        politician_tags = cur.fetchall()
+
+        if not politician_tags:
+            return jsonify({
+                'total_articles': 0,
+                'joint_articles': 0,
+                'percentage': 0,
+                'politician_name': '',
+                'politician_image_url': '',
+                'political_party_name': '',
+                'political_party_image_url': ''
+            })
+
+        politician_tag_texts = [tag[0] for tag in politician_tags]
+
+        # Fetch tags for the political party
+        political_party_tags_query = get_tags_query('political-party', political_party_id)
+        cur.execute(political_party_tags_query, (political_party_id,))
+        political_party_tags = cur.fetchall()
+
+        if not political_party_tags:
+            return jsonify({
+                'total_articles': 0,
+                'joint_articles': 0,
+                'percentage': 0,
+                'politician_name': '',
+                'politician_image_url': '',
+                'political_party_name': '',
+                'political_party_image_url': ''
+            })
+
+        political_party_tag_texts = [tag[0] for tag in political_party_tags]
+
+        # Retrieve total articles containing the politician
+        total_articles_query = """
+            SELECT COUNT(DISTINCT a.id)
+            FROM articles a
+            JOIN tags t ON a.id = t.article_id
+            WHERE t.tag_text = ANY(%s)
+        """
+        cur.execute(total_articles_query, (politician_tag_texts,))
+        total_articles = cur.fetchone()[0]
+
+        if total_articles == 0:
+            return jsonify({
+                'total_articles': 0,
+                'joint_articles': 0,
+                'percentage': 0,
+                'politician_name': '',
+                'politician_image_url': '',
+                'political_party_name': '',
+                'political_party_image_url': ''
+            })
+
+        # Retrieve articles containing both the politician and the political party
+        joint_articles_query = """
+            SELECT COUNT(DISTINCT a.id)
+            FROM articles a
+            JOIN tags t1 ON a.id = t1.article_id
+            JOIN tags t2 ON a.id = t2.article_id
+            WHERE t1.tag_text = ANY(%s) AND t2.tag_text = ANY(%s)
+        """
+        cur.execute(joint_articles_query, (politician_tag_texts, political_party_tag_texts))
+        joint_articles = cur.fetchone()[0]
+
+        # Calculate the percentage
+        percentage = (joint_articles / total_articles) * 100
+
+        # Fetch politician details
+        cur.execute("""
+            SELECT CONCAT(first_name, ' ', last_name) AS name, image_url
+            FROM politicians
+            WHERE id = %s
+        """, (politician_id,))
+        politician_details = cur.fetchone()
+        politician_name = politician_details[0]
+        politician_image_url = politician_details[1]
+
+        # Fetch political party details
+        cur.execute("""
+            SELECT abbreviation, image_url
+            FROM political_parties
+            WHERE id = %s
+        """, (political_party_id,))
+        political_party_details = cur.fetchone()
+        political_party_name = political_party_details[0]
+        political_party_image_url = political_party_details[1]
+
+        # Return JSON response
+        return jsonify({
+            'politician_id': politician_id,
+            'politician_name': politician_name,
+            'politician_image_url': politician_image_url,
+            'political_party_id': political_party_id,
+            'political_party_name': political_party_name,
+            'political_party_image_url': political_party_image_url,
+            'total_articles': total_articles,
+            'joint_articles': joint_articles,
+            'percentage': percentage
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching articles count for politician and political party: {e}")
+        return jsonify({"error": "Failed to fetch articles count"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+@statistics_bp.route('/api/politician-top-entities', methods=['GET'])
+def get_politician_top_entities():
+    try:
+        politician_id = request.args.get('politician_id')
+
+        if not politician_id:
+            return jsonify({"error": "Missing politician_id"}), 400
+
+        cur = g.db_cursor
+
+        # SQL query to fetch top entities with mention and emotion counts
+        sql_query = """
+            WITH politician_tags AS (
+                -- Step 1: Fetch all distinct tags associated with politician ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_politician tp ON t.id = tp.tag_id
+                WHERE tp.politician_id = %s
+            ),
+            article_tags AS (
+                -- Step 3: Fetch all distinct tags from articles related to politician ID
+                SELECT DISTINCT t.tag_text, t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT t.tag_text
+                        FROM tags t
+                        JOIN tag_politician tp ON t.id = tp.tag_id
+                        WHERE tp.politician_id = %s
+                    )
+                )
+            )
+            -- Step 4: Fetch entities associated with tags from article_tags
+            SELECT e.id AS entity_id, e.entity_type, e.entity_name, e.entity_image_url, 
+                   COUNT(DISTINCT at.article_id) AS mention_count,
+                   COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                   COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                   COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count
+            FROM article_tags at
+            JOIN (
+                -- Union of all entities associated with tags from politician_tags
+                SELECT tp.politician_id AS id, tag_text, 'politician' AS entity_type,
+                       CONCAT(p.first_name, ' ', p.last_name) AS entity_name,
+                       p.image_url AS entity_image_url
+                FROM tag_politician tp
+                JOIN tags t ON tp.tag_id = t.id
+                LEFT JOIN politicians p ON tp.politician_id = p.id
+                UNION ALL
+                SELECT tpp.political_party_id AS id, tag_text, 'political_party' AS entity_type,
+                       pp.abbreviation AS entity_name,
+                       pp.image_url AS entity_image_url
+                FROM tag_political_parties tpp
+                JOIN tags t ON tpp.tag_id = t.id
+                LEFT JOIN political_parties pp ON tpp.political_party_id = pp.id
+                UNION ALL
+                SELECT tc.city_id AS id, tag_text, 'city' AS entity_type,
+                       c.name AS entity_name,
+                       c.image_url AS entity_image_url
+                FROM tag_city tc
+                JOIN tags t ON tc.tag_id = t.id
+                LEFT JOIN cities c ON tc.city_id = c.id
+            ) e ON at.tag_text = e.tag_text
+            LEFT JOIN articles a ON at.article_id = a.id
+            WHERE at.tag_text != ANY(SELECT DISTINCT tag_text FROM politician_tags)
+            GROUP BY e.id, e.entity_type, e.entity_name, e.entity_image_url
+            ORDER BY mention_count DESC
+            OFFSET 1 LIMIT 3; -- Offset 1 skips the first result (which is the top entity), then fetches the next 3
+        """
+        
+        cur.execute(sql_query, (politician_id, politician_id))
+        results = cur.fetchall()
+
+        # Format the results into JSON
+        top_entities = []
+        for row in results:
+            entity = {
+                'entity_id': row[0],
+                'entity_type': row[1],
+                'entity_name': row[2],
+                'entity_image_url': row[3],
+                'mention_count': row[4],
+                'positive_count': row[5],
+                'negative_count': row[6],
+                'neutral_count': row[7]
+            }
+            top_entities.append(entity)
+
+        cur.execute("""
+            SELECT CONCAT(first_name, ' ', last_name) AS politician_name
+            FROM politicians
+            WHERE id = %s
+        """, (politician_id,))
+        politician_name = cur.fetchone()[0]
+
+        # Return JSON response
+        return jsonify({
+            'politician_id': politician_id,
+            'politician_name': politician_name,
+            'top_entities': top_entities
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching top entities for politician: {e}")
+        return jsonify({"error": "Failed to fetch top entities"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+@statistics_bp.route('/api/top-politician-authors', methods=['GET'])
+def get_top_politician_authors():
+    try:
+        # Get politician_id from query parameters
+        politician_id = request.args.get('politician_id')
+
+        # Construct the SQL query with politician_id as parameter
+        query = """
+            WITH politician_tags AS (
+                -- Step 1: Fetch all distinct tags associated with politician ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_politician tp ON t.id = tp.tag_id
+                WHERE tp.politician_id = %s
+            ),
+            entity_articles AS (
+                -- Step 2: Fetch all distinct articles related to politician ID
+                SELECT DISTINCT t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT tag_text
+                        FROM politician_tags
+                    )
+                )
+            )
+            -- Step 3: Fetch detailed information from articles related to the politician
+            SELECT
+                a.author,
+                COUNT(*) AS articles_count,
+                COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count,
+                s.name AS source_name,
+                s.image_url AS source_image_url
+            FROM
+                articles a
+            JOIN
+                entity_articles ea ON a.id = ea.article_id
+            JOIN
+                sources s ON a.source = s.id
+            GROUP BY
+                a.author, s.name, s.image_url
+            ORDER BY
+                articles_count DESC
+            LIMIT 3
+        """
+
+        cur = g.db_cursor
+
+        # Execute the query with the politician_id parameter
+        cur.execute(query, (politician_id,))
+
+        # Fetch all rows from the query result
+        top_authors = cur.fetchall()
+
+
+
+        # Format the response data
+        response_data = []
+        for row in top_authors:
+            # Access elements of each tuple using integer indices
+            author_name = row[0]
+            articles_count = row[1]
+            positive_count = row[2]
+            negative_count = row[3]
+            neutral_count = row[4]
+            source_name = row[5]
+            source_image_url = row[6]
+
+            response_data.append({
+                'author': author_name,
+                'articles_count': articles_count,
+                'positive_count': positive_count,
+                'negative_count': negative_count,
+                'neutral_count': neutral_count,
+                'source': {
+                    'name': source_name,
+                    'image_url': source_image_url
+                }
+            })
+
+        cur.execute("""
+            SELECT CONCAT(first_name, ' ', last_name) AS politician_name
+            FROM politicians
+            WHERE id = %s
+        """, (politician_id,))
+        politician_name = cur.fetchone()[0]
+
+        final_response = {
+            'politician_name': politician_name,
+            'top_authors_data': response_data
+        }
+
+        # Return JSON response
+        return jsonify(final_response)
+
+    except Exception as e:
+        print("Error fetching top authors:", e)
+        return jsonify({"error": "Failed to fetch top authors"}), 500
+
+@statistics_bp.route('/api/entity-rank', methods=['GET'])
+def get_entity_rank():
+    try:
+        # Get entity_type and entity_id from query parameters
+        entity_type = request.args.get('entity_type')
+        entity_id = request.args.get('entity_id')
+
+        if not entity_type or not entity_id:
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        # Convert entity_id to integer
+        try:
+            entity_id = int(entity_id)
+        except ValueError:
+            return jsonify({"error": "Invalid entity_id"}), 400
+        
+        cur = g.db_cursor
+
+        # Construct the SQL query with placeholders
+        query = """
+            WITH entity_tags AS (
+                -- Step 1: Fetch all distinct tags associated with each entity
+                SELECT 'politician' AS entity_type, tp.politician_id AS entity_id, t.tag_text
+                FROM tags t
+                JOIN tag_politician tp ON t.id = tp.tag_id
+                UNION ALL
+                SELECT 'political_party' AS entity_type, tpp.political_party_id AS entity_id, t.tag_text
+                FROM tags t
+                JOIN tag_political_parties tpp ON t.id = tpp.tag_id
+                UNION ALL
+                SELECT 'city' AS entity_type, tc.city_id AS entity_id, t.tag_text
+                FROM tags t
+                JOIN tag_city tc ON t.id = tc.tag_id
+            ),
+            entity_articles AS (
+                -- Step 2: Fetch all distinct articles related to those tags
+                SELECT DISTINCT t.article_id, et.entity_type, et.entity_id
+                FROM tags t
+                JOIN entity_tags et ON t.tag_text = et.tag_text
+            ),
+            entity_article_counts AS (
+                -- Step 3: Count the total number of articles for each entity
+                SELECT 
+                    ea.entity_type, 
+                    ea.entity_id, 
+                    COUNT(DISTINCT ea.article_id) AS total_articles
+                FROM 
+                    entity_articles ea
+                GROUP BY 
+                    ea.entity_type, 
+                    ea.entity_id
+            ),
+            ranked_entities AS (
+                -- Step 4: Rank the entities based on their total article count
+                SELECT 
+                    entity_type, 
+                    entity_id, 
+                    total_articles,
+                    RANK() OVER (ORDER BY total_articles DESC) AS rank
+                FROM 
+                    entity_article_counts
+            ),
+            entity_details AS (
+                -- Step 5: Fetch names and image URLs from the appropriate tables
+                SELECT 
+                    p.id AS entity_id, 
+                    'politician' AS entity_type, 
+                    CONCAT(p.first_name, ' ', p.last_name) AS name, 
+                    p.image_url
+                FROM 
+                    politicians p
+                UNION ALL
+                SELECT 
+                    pp.id AS entity_id, 
+                    'political_party' AS entity_type, 
+                    pp.abbreviation AS name, 
+                    pp.image_url
+                FROM 
+                    political_parties pp
+                UNION ALL
+                SELECT 
+                    c.id AS entity_id, 
+                    'city' AS entity_type, 
+                    c.name, 
+                    c.image_url
+                FROM 
+                    cities c
+            ),
+            selected_entity AS (
+                -- Step 6: Select the specified entity and its rank
+                SELECT 
+                    re.entity_type, 
+                    re.entity_id, 
+                    re.total_articles, 
+                    re.rank
+                FROM 
+                    ranked_entities re
+                WHERE 
+                    re.entity_type = %s AND re.entity_id = %s
+            ),
+            neighbors AS (
+                -- Step 7: Ensure always three entities are returned
+                SELECT 
+                    re.entity_type, 
+                    re.entity_id, 
+                    re.total_articles, 
+                    re.rank,
+                    ROW_NUMBER() OVER (ORDER BY re.rank) AS row_num
+                FROM 
+                    ranked_entities re
+            ),
+            extended_selection AS (
+                -- Step 8: Select the neighboring entities
+                SELECT 
+                    n.entity_type, 
+                    n.entity_id, 
+                    n.total_articles, 
+                    n.rank
+                FROM 
+                    neighbors n
+                CROSS JOIN selected_entity se
+                WHERE 
+                    (n.rank BETWEEN se.rank - 1 AND se.rank + 1)
+                    OR (se.rank = 1 AND n.rank BETWEEN 1 AND 3)
+                    OR (se.rank = (SELECT MAX(rank) FROM ranked_entities) AND n.rank BETWEEN se.rank - 2 AND se.rank)
+            )
+            -- Step 9: Combine the ranks with entity details and get the neighbors
+            SELECT 
+                es.entity_type, 
+                es.entity_id, 
+                ed.name, 
+                ed.image_url, 
+                es.total_articles, 
+                es.rank
+            FROM 
+                extended_selection es
+            JOIN 
+                entity_details ed ON es.entity_type = ed.entity_type AND es.entity_id = ed.entity_id
+            ORDER BY 
+                es.rank;
+        """
+
+        # Execute the query with parameters
+        cur.execute(query, (entity_type, entity_id))
+        result = cur.fetchall()
+
+        # Construct response with keys
+        response_data = []
+        for row in result:
+            response_data.append({
+                'entity_type': row[0],
+                'entity_id': row[1],
+                'name': row[2],
+                'image_url': row[3],
+                'total_articles': row[4],
+                'rank': row[5]
+            })
+
+        return jsonify(response_data)
+
+    except Exception as e:
+        print("Error fetching entity rank and neighbors:", e)
+        return jsonify({"error": "Failed to fetch entity rank and neighbors"}), 500
+
+
+### POLITICAL PARTY PAGE ###
+    
+@statistics_bp.route('/api/top-political-party-authors', methods=['GET'])
+def get_top_political_party_authors():
+    try:
+        # Get political_party_id from query parameters
+        political_party_id = request.args.get('political_party_id')
+
+        # Construct the SQL query with political_party_id as parameter
+        query = """
+            WITH political_party_tags AS (
+                -- Step 1: Fetch all distinct tags associated with political_party ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_political_parties tp ON t.id = tp.tag_id
+                WHERE tp.political_party_id = %s
+            ),
+            entity_articles AS (
+                -- Step 2: Fetch all distinct articles related to political_party ID
+                SELECT DISTINCT t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT tag_text
+                        FROM political_party_tags
+                    )
+                )
+            )
+            -- Step 3: Fetch detailed information from articles related to the political_party
+            SELECT
+                a.author,
+                COUNT(*) AS articles_count,
+                COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count,
+                s.name AS source_name,
+                s.image_url AS source_image_url
+            FROM
+                articles a
+            JOIN
+                entity_articles ea ON a.id = ea.article_id
+            JOIN
+                sources s ON a.source = s.id
+            GROUP BY
+                a.author, s.name, s.image_url
+            ORDER BY
+                articles_count DESC
+            LIMIT 3
+        """
+
+        cur = g.db_cursor
+
+        # Execute the query with the political_party_id parameter
+        cur.execute(query, (political_party_id,))
+
+        # Fetch all rows from the query result
+        top_authors = cur.fetchall()
+
+        # Format the response data
+        response_data = []
+        for row in top_authors:
+            # Access elements of each tuple using integer indices
+            author_name = row[0]
+            articles_count = row[1]
+            positive_count = row[2]
+            negative_count = row[3]
+            neutral_count = row[4]
+            source_name = row[5]
+            source_image_url = row[6]
+
+            response_data.append({
+                'author': author_name,
+                'articles_count': articles_count,
+                'positive_count': positive_count,
+                'negative_count': negative_count,
+                'neutral_count': neutral_count,
+                'source': {
+                    'name': source_name,
+                    'image_url': source_image_url
+                }
+            })
+
+        cur.execute("""
+            SELECT abbreviation AS political_party_name
+            FROM political_parties
+            WHERE id = %s
+        """, (political_party_id,))
+        political_party_name = cur.fetchone()[0]
+
+        final_response = {
+            'political_party_name': political_party_name,
+            'top_authors_data': response_data
+        }
+
+        # Return JSON response
+        return jsonify(final_response)
+
+    except Exception as e:
+        print("Error fetching top authors:", e)
+        return jsonify({"error": "Failed to fetch top authors"}), 500
+
+@statistics_bp.route('/api/political-party-articles-distribution-last-7-days/<int:political_party_id>', methods=['GET'])
+def get_articles_distribution_last_7_days_political_party(political_party_id):
+    try:
+        cur = g.db_cursor
+
+        today = datetime.today()
+        date_7_days_ago = today - timedelta(days=7)
+
+        cur.execute("""
+            SELECT 
+                DATE(a.published_date) AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_political_parties
+                JOIN tags ON tag_political_parties.tag_id = tags.id
+                WHERE political_party_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY DATE(a.published_date)
+            ORDER BY publish_date
+        """, (political_party_id, date_7_days_ago, today))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0].strftime('%Y-%m-%d'))
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+
+        cur.execute("""
+            SELECT abbreviation AS political_party_name
+            FROM political_parties
+            WHERE id = %s
+        """, (political_party_id,))
+        political_party_name = cur.fetchone()[0]
+
+        return jsonify({
+            'political_party_name': political_party_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for political_party:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for political_party"}), 500
+
+@statistics_bp.route('/api/political-party-articles-distribution-since-january/<int:political_party_id>', methods=['GET'])
+def get_articles_distribution_since_january_political_party(political_party_id):
+    try:
+        cur = g.db_cursor
+
+        start_date = datetime(datetime.today().year, 1, 1)
+        end_date = datetime.today()
+
+        cur.execute("""
+            SELECT 
+                TO_CHAR(a.published_date, 'YYYY-MM') AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_political_parties
+                JOIN tags ON tag_political_parties.tag_id = tags.id
+                WHERE political_party_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY TO_CHAR(a.published_date, 'YYYY-MM')
+            ORDER BY publish_date
+        """, (political_party_id, start_date, end_date))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0])
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+        
+        cur.execute("""
+            SELECT abbreviation AS political_party_name
+            FROM political_parties
+            WHERE id = %s
+        """, (political_party_id,))
+        political_party_name = cur.fetchone()[0]
+
+        return jsonify({
+            'political_party_name': political_party_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for political_party:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for political_party"}), 500
+
+@statistics_bp.route('/api/political-party-top-entities', methods=['GET'])
+def get_political_party_top_entities():
+    try:
+        political_party_id = request.args.get('political_party_id')
+
+        if not political_party_id:
+            return jsonify({"error": "Missing political_party_id"}), 400
+
+        cur = g.db_cursor
+
+        # SQL query to fetch top entities with mention and emotion counts
+        sql_query = """
+            WITH political_party_tags AS (
+                -- Step 1: Fetch all distinct tags associated with political_party ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_political_parties tp ON t.id = tp.tag_id
+                WHERE tp.political_party_id = %s
+            ),
+            article_tags AS (
+                -- Step 3: Fetch all distinct tags from articles related to political_party ID
+                SELECT DISTINCT t.tag_text, t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT t.tag_text
+                        FROM tags t
+                        JOIN tag_political_parties tp ON t.id = tp.tag_id
+                        WHERE tp.political_party_id = %s
+                    )
+                )
+            )
+            -- Step 4: Fetch entities associated with tags from article_tags
+            SELECT e.id AS entity_id, e.entity_type, e.entity_name, e.entity_image_url, 
+                   COUNT(DISTINCT at.article_id) AS mention_count,
+                   COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                   COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                   COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count
+            FROM article_tags at
+            JOIN (
+                -- Union of all entities associated with tags from political_party_tags
+                SELECT tp.political_party_id AS id, tag_text, 'political-party' AS entity_type,
+                       p.abbreviation AS entity_name,
+                       p.image_url AS entity_image_url
+                FROM tag_political_parties tp
+                JOIN tags t ON tp.tag_id = t.id
+                LEFT JOIN political_parties p ON tp.political_party_id = p.id
+                UNION ALL
+                SELECT tpp.political_party_id AS id, tag_text, 'political_party' AS entity_type,
+                       pp.abbreviation AS entity_name,
+                       pp.image_url AS entity_image_url
+                FROM tag_political_parties tpp
+                JOIN tags t ON tpp.tag_id = t.id
+                LEFT JOIN political_parties pp ON tpp.political_party_id = pp.id
+                UNION ALL
+                SELECT tc.city_id AS id, tag_text, 'city' AS entity_type,
+                       c.name AS entity_name,
+                       c.image_url AS entity_image_url
+                FROM tag_city tc
+                JOIN tags t ON tc.tag_id = t.id
+                LEFT JOIN cities c ON tc.city_id = c.id
+            ) e ON at.tag_text = e.tag_text
+            LEFT JOIN articles a ON at.article_id = a.id
+            WHERE at.tag_text != ANY(SELECT DISTINCT tag_text FROM political_party_tags)
+            GROUP BY e.id, e.entity_type, e.entity_name, e.entity_image_url
+            ORDER BY mention_count DESC
+            OFFSET 1 LIMIT 3; -- Offset 1 skips the first result (which is the top entity), then fetches the next 3
+        """
+        
+        cur.execute(sql_query, (political_party_id, political_party_id))
+        results = cur.fetchall()
+
+        # Format the results into JSON
+        top_entities = []
+        for row in results:
+            entity = {
+                'entity_id': row[0],
+                'entity_type': row[1],
+                'entity_name': row[2],
+                'entity_image_url': row[3],
+                'mention_count': row[4],
+                'positive_count': row[5],
+                'negative_count': row[6],
+                'neutral_count': row[7]
+            }
+            top_entities.append(entity)
+
+        cur.execute("""
+            SELECT abbreviation AS political_party_name
+            FROM political_parties
+            WHERE id = %s
+        """, (political_party_id,))
+        political_party_name = cur.fetchone()[0]
+
+        # Return JSON response
+        return jsonify({
+            'political_party_id': political_party_id,
+            'political_party_name': political_party_name,
+            'top_entities': top_entities
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching top entities for political_party: {e}")
+        return jsonify({"error": "Failed to fetch top entities"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+
+### CITY PAGE ###
+
+@statistics_bp.route('/api/city-articles-distribution-last-7-days/<int:city_id>', methods=['GET'])
+def get_articles_distribution_last_7_days_city(city_id):
+    try:
+        cur = g.db_cursor
+
+        today = datetime.today()
+        date_7_days_ago = today - timedelta(days=7)
+
+        cur.execute("""
+            SELECT 
+                DATE(a.published_date) AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_city
+                JOIN tags ON tag_city.tag_id = tags.id
+                WHERE city_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY DATE(a.published_date)
+            ORDER BY publish_date
+        """, (city_id, date_7_days_ago, today))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0].strftime('%Y-%m-%d'))
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+
+        cur.execute("""
+            SELECT name AS city_name
+            FROM cities
+            WHERE id = %s
+        """, (city_id,))
+        city_name = cur.fetchone()[0]
+
+        return jsonify({
+            'city_name': city_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for city:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for city"}), 500
+
+@statistics_bp.route('/api/city-articles-distribution-since-january/<int:city_id>', methods=['GET'])
+def get_articles_distribution_since_january_city(city_id):
+    try:
+        cur = g.db_cursor
+
+        start_date = datetime(datetime.today().year, 1, 1)
+        end_date = datetime.today()
+
+        cur.execute("""
+            SELECT 
+                TO_CHAR(a.published_date, 'YYYY-MM') AS publish_date,
+                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
+                COUNT(a.id) AS total_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text IN (
+                SELECT tag_text
+                FROM tag_city
+                JOIN tags ON tag_city.tag_id = tags.id
+                WHERE city_id = %s
+            ) AND a.published_date BETWEEN %s AND %s
+            GROUP BY TO_CHAR(a.published_date, 'YYYY-MM')
+            ORDER BY publish_date
+        """, (city_id, start_date, end_date))
+        
+        articles = cur.fetchall()
+
+        dates = []
+        positive_counts = []
+        negative_counts = []
+        neutral_counts = []
+        total_counts = []
+
+        for article in articles:
+            dates.append(article[0])
+            positive_counts.append(article[1])
+            negative_counts.append(article[2])
+            neutral_counts.append(article[3])
+            total_counts.append(article[4])
+        
+        cur.execute("""
+            SELECT name AS city_name
+            FROM cities
+            WHERE id = %s
+        """, (city_id,))
+        city_name = cur.fetchone()[0]
+
+        return jsonify({
+            'city_name': city_name,
+            'dates': dates,
+            'positive_counts': positive_counts,
+            'negative_counts': negative_counts,
+            'neutral_counts': neutral_counts,
+            'total_counts': total_counts
+        })
+
+    except Exception as e:
+        print("Error fetching articles distribution for city:", e)
+        return jsonify({"error": "Failed to fetch articles distribution for city"}), 500
+
+@statistics_bp.route('/api/top-city-authors', methods=['GET'])
+def get_top_city_authors():
+    try:
+        # Get city_id from query parameters
+        city_id = request.args.get('city_id')
+
+        # Construct the SQL query with city_id as parameter
+        query = """
+            WITH city_tags AS (
+                -- Step 1: Fetch all distinct tags associated with city ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_city tp ON t.id = tp.tag_id
+                WHERE tp.city_id = %s
+            ),
+            entity_articles AS (
+                -- Step 2: Fetch all distinct articles related to city ID
+                SELECT DISTINCT t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT tag_text
+                        FROM city_tags
+                    )
+                )
+            )
+            -- Step 3: Fetch detailed information from articles related to the city
+            SELECT
+                a.author,
+                COUNT(*) AS articles_count,
+                COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count,
+                s.name AS source_name,
+                s.image_url AS source_image_url
+            FROM
+                articles a
+            JOIN
+                entity_articles ea ON a.id = ea.article_id
+            JOIN
+                sources s ON a.source = s.id
+            GROUP BY
+                a.author, s.name, s.image_url
+            ORDER BY
+                articles_count DESC
+            LIMIT 3
+        """
+
+        cur = g.db_cursor
+
+        # Execute the query with the city_id parameter
+        cur.execute(query, (city_id,))
+
+        # Fetch all rows from the query result
+        top_authors = cur.fetchall()
+
+        # Format the response data
+        response_data = []
+        for row in top_authors:
+            # Access elements of each tuple using integer indices
+            author_name = row[0]
+            articles_count = row[1]
+            positive_count = row[2]
+            negative_count = row[3]
+            neutral_count = row[4]
+            source_name = row[5]
+            source_image_url = row[6]
+
+            response_data.append({
+                'author': author_name,
+                'articles_count': articles_count,
+                'positive_count': positive_count,
+                'negative_count': negative_count,
+                'neutral_count': neutral_count,
+                'source': {
+                    'name': source_name,
+                    'image_url': source_image_url
+                }
+            })
+
+        cur.execute("""
+            SELECT name AS city_name
+            FROM cities
+            WHERE id = %s
+        """, (city_id,))
+        city_name = cur.fetchone()[0]
+
+        final_response = {
+            'city_name': city_name,
+            'top_authors_data': response_data
+        }
+
+        # Return JSON response
+        return jsonify(final_response)
+
+    except Exception as e:
+        print("Error fetching top authors:", e)
+        return jsonify({"error": "Failed to fetch top authors"}), 500
+
+@statistics_bp.route('/api/city-top-entities', methods=['GET'])
+def get_city_top_entities():
+    try:
+        city_id = request.args.get('city_id')
+
+        if not city_id:
+            return jsonify({"error": "Missing city_id"}), 400
+
+        cur = g.db_cursor
+
+        # SQL query to fetch top entities with mention and emotion counts
+        sql_query = """
+            WITH city_tags AS (
+                -- Step 1: Fetch all distinct tags associated with city ID
+                SELECT DISTINCT t.tag_text
+                FROM tags t
+                JOIN tag_city tp ON t.id = tp.tag_id
+                WHERE tp.city_id = %s
+            ),
+            article_tags AS (
+                -- Step 3: Fetch all distinct tags from articles related to city ID
+                SELECT DISTINCT t.tag_text, t.article_id
+                FROM tags t
+                WHERE t.article_id IN (
+                    SELECT DISTINCT t.article_id
+                    FROM tags t
+                    WHERE t.tag_text IN (
+                        SELECT DISTINCT t.tag_text
+                        FROM tags t
+                        JOIN tag_city tp ON t.id = tp.tag_id
+                        WHERE tp.city_id = %s
+                    )
+                )
+            )
+            -- Step 4: Fetch entities associated with tags from article_tags
+            SELECT e.id AS entity_id, e.entity_type, e.entity_name, e.entity_image_url, 
+                   COUNT(DISTINCT at.article_id) AS mention_count,
+                   COUNT(CASE WHEN a.emotion = 'Positive' THEN 1 END) AS positive_count,
+                   COUNT(CASE WHEN a.emotion = 'Negative' THEN 1 END) AS negative_count,
+                   COUNT(CASE WHEN a.emotion = 'Neutral' THEN 1 END) AS neutral_count
+            FROM article_tags at
+            JOIN (
+                -- Union of all entities associated with tags from city_tags
+                SELECT tp.city_id AS id, tag_text, 'city' AS entity_type,
+                       p.name AS entity_name,
+                       p.image_url AS entity_image_url
+                FROM tag_city tp
+                JOIN tags t ON tp.tag_id = t.id
+                LEFT JOIN cities p ON tp.city_id = p.id
+                UNION ALL
+                SELECT tpp.political_party_id AS id, tag_text, 'political_party' AS entity_type,
+                       pp.abbreviation AS entity_name,
+                       pp.image_url AS entity_image_url
+                FROM tag_political_parties tpp
+                JOIN tags t ON tpp.tag_id = t.id
+                LEFT JOIN political_parties pp ON tpp.political_party_id = pp.id
+                UNION ALL
+                SELECT tc.city_id AS id, tag_text, 'city' AS entity_type,
+                       c.name AS entity_name,
+                       c.image_url AS entity_image_url
+                FROM tag_city tc
+                JOIN tags t ON tc.tag_id = t.id
+                LEFT JOIN cities c ON tc.city_id = c.id
+            ) e ON at.tag_text = e.tag_text
+            LEFT JOIN articles a ON at.article_id = a.id
+            WHERE at.tag_text != ANY(SELECT DISTINCT tag_text FROM city_tags)
+            GROUP BY e.id, e.entity_type, e.entity_name, e.entity_image_url
+            ORDER BY mention_count DESC
+            OFFSET 1 LIMIT 3; -- Offset 1 skips the first result (which is the top entity), then fetches the next 3
+        """
+        
+        cur.execute(sql_query, (city_id, city_id))
+        results = cur.fetchall()
+
+        # Format the results into JSON
+        top_entities = []
+        for row in results:
+            entity = {
+                'entity_id': row[0],
+                'entity_type': row[1],
+                'entity_name': row[2],
+                'entity_image_url': row[3],
+                'mention_count': row[4],
+                'positive_count': row[5],
+                'negative_count': row[6],
+                'neutral_count': row[7]
+            }
+            top_entities.append(entity)
+
+        cur.execute("""
+            SELECT name AS city_name
+            FROM cities
+            WHERE id = %s
+        """, (city_id,))
+        city_name = cur.fetchone()[0]
+
+        # Return JSON response
+        return jsonify({
+            'city_id': city_id,
+            'city_name': city_name,
+            'top_entities': top_entities
+        })
+
+    except psycopg2.Error as e:
+        print(f"Error fetching top entities for city: {e}")
+        return jsonify({"error": "Failed to fetch top entities"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return jsonify({"error": "Unexpected error occurred"}), 500
+
+
+
+### ELECTIONS ###
+
+@statistics_bp.route('/api/election-articles-distribution', methods=['GET'])
+def get_election_articles_distribution():
+    try:
+        end_date = datetime.now()
+        start_date_param = request.args.get('start_date')
+        
+        if start_date_param:
+            start_date = datetime.strptime(start_date_param, '%Y-%m-%d').date()
+        else:
+            start_date = end_date - timedelta(days=7)
+
+        cur = g.db_cursor
+
+        # Step 1: Get all the election categories excluding "Toate Alegerile"
+        cur.execute("SELECT id, name FROM elections WHERE name != 'Toate Alegerile'")
+        elections = cur.fetchall()
+
+        # Prepare the result dictionary
+        election_distribution = {election[1]: {} for election in elections}
+
+        # Step 2: Get the tags associated with each election and count articles by date
+        for election in elections:
+            election_id, election_name = election
+
+            # Fetch the tags associated with this election ID
+            cur.execute("SELECT tag_text FROM tags WHERE id IN (SELECT tag_id FROM tag_election WHERE election_id = %s)", (election_id,))
+            tags = [tag[0] for tag in cur.fetchall()]
+
+            if not tags:
+                continue
+
+            # Fetch the article count per day for these tags
+            cur.execute("""
+                SELECT a.published_date::date AS article_date, COUNT(DISTINCT a.id) AS total_articles
+                FROM articles AS a
+                JOIN tags AS t ON a.id = t.article_id
+                WHERE t.tag_text = ANY(%s)
+                  AND a.published_date BETWEEN %s AND %s
+                GROUP BY article_date
+                ORDER BY article_date
+            """, (tags, start_date, end_date))
+            
+            rows = cur.fetchall()
+
+            for row in rows:
+                article_date, total_articles = row
+                election_distribution[election_name][article_date.strftime('%Y-%m-%d')] = total_articles
+
+        return jsonify({'election_distribution': election_distribution})
+
+    except Exception as e:
+        print("Error fetching election articles distribution:", e)
+        return jsonify({"error": "Failed to fetch election articles distribution"}), 500
+    
+@statistics_bp.route('/api/election-articles-stats', methods=['GET'])
+def get_election_articles_stats():
+    try:
+        # Get the election type from the request parameters
+        election_type = request.args.get('election_type')
+        if not election_type:
+            return jsonify({"error": "election_type parameter is required"}), 400
+
+        end_date = datetime.now().date()
+        start_date = datetime(end_date.year, 1, 1).date()  # Start of the current year
+
+        cur = g.db_cursor
+
+        # Step 1: Get the election ID for the provided election type
+        cur.execute("SELECT id FROM elections WHERE name = %s", (election_type,))
+        election = cur.fetchone()
+        if not election:
+            return jsonify({"error": "Invalid election type"}), 400
+
+        election_id = election[0]
+
+        # Step 2: Get the tags associated with this election ID
+        cur.execute("SELECT tag_text FROM tags WHERE id IN (SELECT tag_id FROM tag_election WHERE election_id = %s)", (election_id,))
+        tags = [tag[0] for tag in cur.fetchall()]
+
+        if not tags:
+            return jsonify({"error": "No tags found for the given election type"}), 404
+
+        # Step 3: Fetch the total number of articles and count of each emotion type
+        cur.execute("""
+            SELECT COUNT(DISTINCT a.id) AS total_articles,
+                   SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
+                   SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
+                   SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count
+            FROM articles AS a
+            JOIN tags AS t ON a.id = t.article_id
+            WHERE t.tag_text = ANY(%s)
+              AND a.published_date BETWEEN %s AND %s
+        """, (tags, start_date, end_date))
+
+        row = cur.fetchone()
+        if row:
+            total_articles, positive_count, negative_count, neutral_count = row
+        else:
+            total_articles = positive_count = negative_count = neutral_count = 0
+
+        return jsonify({
+            'election_type': election_type,
+            'total_articles': total_articles,
+            'emotions': {
+                'positive': positive_count,
+                'negative': negative_count,
+                'neutral': neutral_count
+            }
+        })
+
+    except Exception as e:
+        print("Error fetching election articles stats:", e)
+        return jsonify({"error": "Failed to fetch election articles stats"}), 500
 

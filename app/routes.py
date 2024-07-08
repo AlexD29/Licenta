@@ -390,54 +390,59 @@ def politician_articles():
             """, (politician[0],))
             articles = cur.fetchall()
 
-            articles_list = []
-            for article in articles:
-                cur.execute("""
-                    SELECT tag_text
-                    FROM tags
-                    WHERE article_id = %s
-                """, (article[0],))
-                tags = [tag[0] for tag in cur.fetchall()]
+            if articles:  # Only append politician if they have articles
+                articles_list = []
+                for article in articles:
+                    cur.execute("""
+                        SELECT tag_text
+                        FROM tags
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    tags = [tag[0] for tag in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT paragraph_text
-                    FROM article_paragraphs
-                    WHERE article_id = %s
-                """, (article[0],))
-                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+                    cur.execute("""
+                        SELECT paragraph_text
+                        FROM article_paragraphs
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    article_text = [paragraph[0] for paragraph in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT comment_text
-                    FROM comments
-                    WHERE article_id = %s
-                """, (article[0],))
-                comments = [comment[0] for comment in cur.fetchall()]
+                    cur.execute("""
+                        SELECT comment_text
+                        FROM comments
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    comments = [comment[0] for comment in cur.fetchall()]
 
-                article_dict = {
-                    'id': article[0],
-                    'title': article[1],
-                    'url': article[2],
-                    'author': article[3],
-                    'published_date': article[4],
-                    'number_of_views': article[5],
-                    'tags': tags,
-                    'image_url': article[6],
-                    'article_text': article_text,
-                    'comments': comments,
-                    'source': article[7],
-                    'emotion': article[8]
+                    article_dict = {
+                        'id': article[0],
+                        'title': article[1],
+                        'url': article[2],
+                        'author': article[3],
+                        'published_date': article[4],
+                        'number_of_views': article[5],
+                        'tags': tags,
+                        'image_url': article[6],
+                        'article_text': article_text,
+                        'comments': comments,
+                        'source': article[7],
+                        'emotion': article[8]
+                    }
+                    articles_list.append(article_dict)
+
+                politician_dict = {
+                    'id': politician[0],
+                    'first_name': politician[1],
+                    'last_name': politician[2],
+                    'image_url': politician[3],
+                    'articles': articles_list
                 }
-                articles_list.append(article_dict)
 
-            politician_dict = {
-                'id': politician[0],
-                'first_name': politician[1],
-                'last_name': politician[2],
-                'image_url': politician[3],
-                'articles': articles_list
-            }
+                politician_articles_data.append(politician_dict)
 
-            politician_articles_data.append(politician_dict)
+        # Randomly select 10 politicians with articles
+        if len(politician_articles_data) > 10:
+            politician_articles_data = random.sample(politician_articles_data, 10)
 
         return jsonify(politician_articles_data)
 
@@ -556,53 +561,58 @@ def political_parties_articles():
             """, (party[0],))
             articles = cur.fetchall()
 
-            articles_list = []
-            for article in articles:
-                cur.execute("""
-                    SELECT tag_text
-                    FROM tags
-                    WHERE article_id = %s
-                """, (article[0],))
-                tags = [tag[0] for tag in cur.fetchall()]
+            if articles:  # Only append political party if they have articles
+                articles_list = []
+                for article in articles:
+                    cur.execute("""
+                        SELECT tag_text
+                        FROM tags
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    tags = [tag[0] for tag in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT paragraph_text
-                    FROM article_paragraphs
-                    WHERE article_id = %s
-                """, (article[0],))
-                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+                    cur.execute("""
+                        SELECT paragraph_text
+                        FROM article_paragraphs
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    article_text = [paragraph[0] for paragraph in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT comment_text
-                    FROM comments
-                    WHERE article_id = %s
-                """, (article[0],))
-                comments = [comment[0] for comment in cur.fetchall()]
+                    cur.execute("""
+                        SELECT comment_text
+                        FROM comments
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    comments = [comment[0] for comment in cur.fetchall()]
 
-                article_dict = {
-                    'id': article[0],
-                    'title': article[1],
-                    'url': article[2],
-                    'author': article[3],
-                    'published_date': article[4],
-                    'number_of_views': article[5],
-                    'tags': tags,
-                    'image_url': article[6],
-                    'article_text': article_text,
-                    'comments': comments,
-                    'source': article[7],
-                    'emotion': article[8]
+                    article_dict = {
+                        'id': article[0],
+                        'title': article[1],
+                        'url': article[2],
+                        'author': article[3],
+                        'published_date': article[4],
+                        'number_of_views': article[5],
+                        'tags': tags,
+                        'image_url': article[6],
+                        'article_text': article_text,
+                        'comments': comments,
+                        'source': article[7],
+                        'emotion': article[8]
+                    }
+                    articles_list.append(article_dict)
+
+                party_dict = {
+                    'id': party[0],
+                    'abbreviation': party[1],
+                    'image_url': party[2],
+                    'articles': articles_list
                 }
-                articles_list.append(article_dict)
 
-            party_dict = {
-                'id': party[0],
-                'abbreviation': party[1],
-                'image_url': party[2],
-                'articles': articles_list
-            }
+                political_parties_articles_data.append(party_dict)
 
-            political_parties_articles_data.append(party_dict)
+        # Randomly select 10 political parties with articles
+        if len(political_parties_articles_data) > 10:
+            political_parties_articles_data = random.sample(political_parties_articles_data, 10)
 
         return jsonify(political_parties_articles_data)
 
@@ -641,60 +651,65 @@ def cities_articles():
             """, (city[0],))
             articles = cur.fetchall()
 
-            articles_list = []
-            for article in articles:
-                cur.execute("""
-                    SELECT tag_text
-                    FROM tags
-                    WHERE article_id = %s
-                """, (article[0],))
-                tags = [tag[0] for tag in cur.fetchall()]
+            if articles:  # Only append city if they have articles
+                articles_list = []
+                for article in articles:
+                    cur.execute("""
+                        SELECT tag_text
+                        FROM tags
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    tags = [tag[0] for tag in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT paragraph_text
-                    FROM article_paragraphs
-                    WHERE article_id = %s
-                """, (article[0],))
-                article_text = [paragraph[0] for paragraph in cur.fetchall()]
+                    cur.execute("""
+                        SELECT paragraph_text
+                        FROM article_paragraphs
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    article_text = [paragraph[0] for paragraph in cur.fetchall()]
 
-                cur.execute("""
-                    SELECT comment_text
-                    FROM comments
-                    WHERE article_id = %s
-                """, (article[0],))
-                comments = [comment[0] for comment in cur.fetchall()]
+                    cur.execute("""
+                        SELECT comment_text
+                        FROM comments
+                        WHERE article_id = %s
+                    """, (article[0],))
+                    comments = [comment[0] for comment in cur.fetchall()]
 
-                article_dict = {
-                    'id': article[0],
-                    'title': article[1],
-                    'url': article[2],
-                    'author': article[3],
-                    'published_date': article[4],
-                    'number_of_views': article[5],
-                    'tags': tags,
-                    'image_url': article[6],
-                    'article_text': article_text,
-                    'comments': comments,
-                    'source': article[7],
-                    'emotion': article[8]
+                    article_dict = {
+                        'id': article[0],
+                        'title': article[1],
+                        'url': article[2],
+                        'author': article[3],
+                        'published_date': article[4],
+                        'number_of_views': article[5],
+                        'tags': tags,
+                        'image_url': article[6],
+                        'article_text': article_text,
+                        'comments': comments,
+                        'source': article[7],
+                        'emotion': article[8]
+                    }
+                    articles_list.append(article_dict)
+
+                city_dict = {
+                    'id': city[0],
+                    'name': city[1],
+                    'image_url': city[2],
+                    'articles': articles_list
                 }
-                articles_list.append(article_dict)
 
-            city_dict = {
-                'id': city[0],
-                'name': city[1],
-                'image_url': city[2],
-                'articles': articles_list
-            }
+                cities_articles_data.append(city_dict)
 
-            cities_articles_data.append(city_dict)
+        # Randomly select 10 cities with articles
+        if len(cities_articles_data) > 10:
+            cities_articles_data = random.sample(cities_articles_data, 10)
 
         return jsonify(cities_articles_data)
 
     except Exception as e:
-        print("Error fetching political parties articles:", e)
-        return jsonify({"error": "Failed to fetch political parties articles"}), 500
-
+        print("Error fetching cities articles:", e)
+        return jsonify({"error": "Failed to fetch cities articles"}), 500
+    
 @app.route('/api/sources_articles', methods=['GET'])
 def sources_articles():
     try:
@@ -1158,6 +1173,10 @@ def get_favorites():
     try:
         user_id = request.args.get('user_id')
 
+        # Check for invalid user_id values
+        if not user_id or user_id.lower() in ['null', 'undefined']:
+            return jsonify([])  # Return an empty list if user_id is not provided or invalid
+
         cur = g.db_cursor
         cur.execute("""
             SELECT entity_id, entity_type FROM favorites WHERE user_id = %s
@@ -1168,7 +1187,7 @@ def get_favorites():
     except Exception as e:
         print("Error fetching favorites:", e)
         return jsonify({"error": "Failed to fetch favorites"}), 500
-
+    
 @app.route('/api/hidden_entities', methods=['GET'])
 def get_hidden_entities():
     try:
@@ -1189,6 +1208,9 @@ def get_hidden_entities():
 def get_my_interests():
     try:
         user_id = request.args.get('user_id')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 15))
+
         if not user_id:
             return jsonify({"error": "User ID is required"}), 400
 
@@ -1275,6 +1297,7 @@ def get_my_interests():
 
         # Fetch articles related to favorite entities
         all_tags = [tag for tags in entity_tags.values() for tag in tags]
+        offset = (page - 1) * limit
         if all_tags:
             cur.execute("""
                 SELECT DISTINCT a.id, a.title, a.url, a.author, a.published_date, a.number_of_views, a.image_url, a.source, a.emotion,
@@ -1285,10 +1308,21 @@ def get_my_interests():
                 WHERE t.tag_text = ANY(%s)
                 GROUP BY a.id, s.id
                 ORDER BY a.published_date DESC
-            """, (all_tags,))
+                LIMIT %s OFFSET %s
+            """, (all_tags, limit, offset))
             related_articles = cur.fetchall()
+
+            # Get the total count of related articles
+            cur.execute("""
+                SELECT COUNT(DISTINCT a.id)
+                FROM articles a
+                JOIN tags t ON a.id = t.article_id
+                WHERE t.tag_text = ANY(%s)
+            """, (all_tags,))
+            total_articles = cur.fetchone()[0]
         else:
             related_articles = []
+            total_articles = 0
 
         articles_data = []
         for article in related_articles:
@@ -1313,9 +1347,12 @@ def get_my_interests():
             }
             articles_data.append(article_dict)
 
+        total_pages = (total_articles + limit - 1) // limit
+
         return jsonify({
             'favorite_entities': favorite_data,
-            'related_articles': articles_data
+            'related_articles': articles_data,
+            'total_pages': total_pages
         })
 
     except Exception as e:
@@ -2481,102 +2518,8 @@ def get_top_entities(source_id):
         return jsonify({"error": "Unexpected error occurred"}), 500
 
 
-### POLITICIAN CHARTS ###
-    
-@app.route('/api/politician-sources-count/<int:politician_id>', methods=['GET'])
-def get_sources_by_politician_id(politician_id):
-    try:
-        cur = g.db_cursor
-        
-        cur.execute("""
-            WITH unique_articles AS (
-                SELECT DISTINCT a.id, a.source
-                FROM articles AS a
-                JOIN tags AS t ON a.id = t.article_id
-                WHERE t.tag_text IN (
-                    SELECT tag_text
-                    FROM tag_politician
-                    JOIN tags ON tag_politician.tag_id = tags.id
-                    WHERE politician_id = %s
-                )
-            )
-            SELECT s.id, s.name, s.image_url, COUNT(ua.id) AS article_count
-            FROM unique_articles AS ua
-            JOIN sources AS s ON ua.source = s.id
-            GROUP BY s.id
-            ORDER BY article_count DESC
-        """, (politician_id,))
-        sources = cur.fetchall()
 
-        sources_list = []
-        for source in sources:
-            source_dict = {
-                'id': source[0],
-                'name': source[1],
-                'image_url': source[2],
-                'article_count': source[3]
-            }
-            sources_list.append(source_dict)
 
-        return jsonify(sources_list)
-
-    except Exception as e:
-        print("Error fetching sources for politician:", e)
-        return jsonify({"error": "Failed to fetch sources for politician"}), 500
-
-@app.route('/api/politician-articles-distribution/<int:politician_id>', methods=['GET'])
-def get_articles_distribution(politician_id):
-    try:
-        cur = g.db_cursor
-
-        today = datetime.today()
-        date_7_days_ago = today - timedelta(days=7)
-
-        cur.execute("""
-            SELECT 
-                DATE(a.published_date) AS publish_date,
-                SUM(CASE WHEN a.emotion = 'Positive' THEN 1 ELSE 0 END) AS positive_count,
-                SUM(CASE WHEN a.emotion = 'Negative' THEN 1 ELSE 0 END) AS negative_count,
-                SUM(CASE WHEN a.emotion = 'Neutral' THEN 1 ELSE 0 END) AS neutral_count,
-                COUNT(a.id) AS total_count
-            FROM articles AS a
-            JOIN tags AS t ON a.id = t.article_id
-            WHERE t.tag_text IN (
-                SELECT tag_text
-                FROM tag_politician
-                JOIN tags ON tag_politician.tag_id = tags.id
-                WHERE politician_id = %s
-            ) AND a.published_date BETWEEN %s AND %s
-            GROUP BY DATE(a.published_date)
-            ORDER BY publish_date
-        """, (politician_id, date_7_days_ago, today))
-        
-        articles = cur.fetchall()
-
-        dates = []
-        positive_counts = []
-        negative_counts = []
-        neutral_counts = []
-        total_counts = []
-
-        for article in articles:
-            dates.append(article[0].strftime('%Y-%m-%d'))
-            positive_counts.append(article[1])
-            negative_counts.append(article[2])
-            neutral_counts.append(article[3])
-            total_counts.append(article[4])
-
-        return jsonify({
-            'dates': dates,
-            'positive_counts': positive_counts,
-            'negative_counts': negative_counts,
-            'neutral_counts': neutral_counts,
-            'total_counts': total_counts
-        })
-
-    except Exception as e:
-        print("Error fetching articles distribution for politician:", e)
-        return jsonify({"error": "Failed to fetch articles distribution for politician"}), 500
 
 
 

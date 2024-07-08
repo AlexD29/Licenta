@@ -101,7 +101,7 @@
 .first-article-image {
   width: 100%;
   height: 25rem;
-  display: block; /* Remove any extra space below the image */
+  object-fit: cover;
 }
 
 .first-article-image-div::before {

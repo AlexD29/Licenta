@@ -2,19 +2,26 @@ import React, { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 
-const PoliticianSourcesChart = ({ politicianId }) => {
+const PoliticianSourcesChart = ({ entityId, entityType }) => {
   const [chartData, setChartData] = useState([]);
+  const [entityName, setEntityName] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/api/politician-sources-count/${politicianId}`);
-        const sources = response.data;
+        const response = await axios.get(`http://localhost:8000/api/entity-sources-count/${entityId}`, {
+          params: {
+            entity_type: entityType
+          }
+        });
+        const { entity_name, sources } = response.data;
         const data = sources.map(source => ({
           value: source.article_count,
           name: source.name,
-          image: source.image_url // include the image URL in the data
+          image: source.image_url
         }));
+
+        setEntityName(entity_name);
         setChartData(data);
       } catch (error) {
         console.error('Error fetching sources data:', error);
@@ -22,29 +29,33 @@ const PoliticianSourcesChart = ({ politicianId }) => {
     };
 
     fetchData();
-  }, [politicianId]);
+  }, [entityId]);
 
   const getOption = () => ({
     title: {
-      text: ['Distribuția articolelor pe surse pentru Marcel Ciolacu'],
+      text: 'Distribuția articolelor pe surse',
+      subtext: 'pentru ' + entityName,
       left: 'center',
+      top: 0, // Adjust top value to increase space between title and chart
       textStyle: {
-        color: '#000', // Default text color for the entire chart
-        fontSize: 16,
-        lineHeight: 20
+        color: '#000',
+      },
+      subtextStyle: {
+        color: '#666',
+        fontSize: 14,
       }
     },
     tooltip: {
       trigger: 'item',
       textStyle: {
-        color: '#000' // Tooltip text color
+        color: '#000'
       }
     },
     series: [
       {
         name: 'Sources',
         type: 'pie',
-        top: 0,
+        top: 25,
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
         itemStyle: {
@@ -65,7 +76,7 @@ const PoliticianSourcesChart = ({ politicianId }) => {
               align: 'center',
               backgroundColor: {
                 image: function (params) {
-                  return params.data.image; // Use image URL for the icon
+                  return params.data.image;
                 }
               }
             },
@@ -93,7 +104,7 @@ const PoliticianSourcesChart = ({ politicianId }) => {
       }
     ],
     textStyle: {
-      color: '#000' // Default text color for the entire chart
+      color: '#000'
     }
   });
 
